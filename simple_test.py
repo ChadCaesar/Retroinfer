@@ -118,7 +118,7 @@ if __name__ == "__main__":
     groundtruths = groundtruths[:batch_size]
 
     # tokenize input data
-    tokenizer = AutoTokenizer.from_pretrained(model_name)
+    tokenizer = AutoTokenizer.from_pretrained(os.path.join("..", "models", model_name.split("/")[-1]))
     tokenizer.pad_token = tokenizer.eos_token
     tokenizer.padding_side = "left"
     inputs = tokenizer(prompts, return_tensors="pt", padding=True)

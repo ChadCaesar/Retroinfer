@@ -56,8 +56,8 @@ class LlamaModel(LLM):
     ) -> None:
         super().__init__(model_name, max_length, dtype, device_map)
 
-        self.tokenizer = AutoTokenizer.from_pretrained(model_name)
-        self.config = LlamaConfig.from_pretrained(model_name)
+        self.tokenizer = AutoTokenizer.from_pretrained(os.path.join("..", "models", model_name.split("/")[-1]))
+        self.config = LlamaConfig.from_pretrained(os.path.join("..", "models", model_name.split("/")[-1]))
         self.num_layers = self.config.num_hidden_layers
         self.num_heads = self.config.num_attention_heads
         self.num_key_value_heads = self.config.num_key_value_heads
@@ -78,7 +78,7 @@ class LlamaModel(LLM):
 
 
     def init_model(self):
-        hf_llama = LlamaForCausalLM.from_pretrained(self.model_name, torch_dtype=self.dtype)
+        hf_llama = LlamaForCausalLM.from_pretrained(os.path.join("..", "models", self.model_name.split("/")[-1]), torch_dtype=self.dtype)
 
         self.num_gpus = torch.cuda.device_count() if self.device_map == 'auto' else 1
         if self.device_map == 'auto' and self.num_gpus == 1:
@@ -242,7 +242,7 @@ class LlamaModel(LLM):
         if self.attention_type == 'Full_Flash_Attn':
             attn_out = decode_full_flash_attn(query_states, key_states, value_states, layer_idx, self.kv_cache)
         elif self.attention_type == 'RetroInfer':
-            attn_out = retroinfer_decode_attn(query_states, key_states, value_states, layer_idx, self.kv_cache)
+            attn_out = retroinfer_decode_attn(query_states, layer_idx, self.kv_cache)
         else:
             raise ValueError(f"Unsupported attention type: {self.attention_type}")
         return attn_out

@@ -61,8 +61,8 @@ class QwenModel(LLM):
     ) -> None:
         super().__init__(model_name, max_length, dtype, device_map)
 
-        self.tokenizer = AutoTokenizer.from_pretrained(model_name)
-        self.config = Qwen2Config.from_pretrained(model_name)
+        self.tokenizer = AutoTokenizer.from_pretrained(os.path.join("..", "models", model_name.split("/")[-1]))
+        self.config = Qwen2Config.from_pretrained(os.path.join("..", "models", model_name.split("/")[-1]))
         self.num_layers = self.config.num_hidden_layers
         self.num_heads = self.config.num_attention_heads
         self.num_key_value_heads = self.config.num_key_value_heads
@@ -123,7 +123,7 @@ class QwenModel(LLM):
 
 
     def init_model(self):
-        hf_qwen = Qwen2ForCausalLM.from_pretrained(self.model_name, torch_dtype=self.dtype)
+        hf_qwen = Qwen2ForCausalLM.from_pretrained(os.path.join("..", "models", self.model_name.split("/")[-1]), torch_dtype=self.dtype)
 
         self.num_gpus = torch.cuda.device_count() if self.device_map == 'auto' else 1
         if self.device_map == 'auto' and self.num_gpus == 1:

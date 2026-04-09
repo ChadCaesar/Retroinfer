@@ -112,7 +112,7 @@ if __name__ == "__main__":
         attn_config = generate_config(model_name, 120000, attn_type)
     
     prompts = [prompt for _ in range(batch_size)]
-    tokenizer = AutoTokenizer.from_pretrained(model_name)
+    tokenizer = AutoTokenizer.from_pretrained(os.path.join("..", "models", model_name.split("/")[-1]))
     tokenizer.pad_token = tokenizer.eos_token
     tokenizer.padding_side = "left"
     inputs = tokenizer(prompts, return_tensors="pt", padding=True)
