@@ -1,5 +1,6 @@
 import math
 import torch
+from torch.nn.functional import cosine_similarity
 from retroinfer_kernels import ThreadPool, WaveBufferCPU
 from retroinfer_kernels import gather_copy_and_concat, gather_copy_and_scatter, gather_copy_vectors, batch_gemm_softmax
 
@@ -91,9 +92,17 @@ class retroinfer_cache(KV_Cache):
         # index parameters
         self.n_centroids = n_centroids
         self.n_segment = n_segment
-        self.nprobe = nprobe    # retrieve zone size
+        self.nprobe = nprobe    # retrieve zone max size
         self.max_compute_cluster_num = max_compute_cluster_num
         self.es_cluster_num = max_compute_cluster_num - nprobe  # estimation zone size
+
+        # 复用聚类选择结果相关
+        self.prev_queries = [None] * self.layer_num
+        self.prev_cI = [None] * self.layer_num
+        self.reuse_threshold = 0.95
+
+        # Top-p 累计概率选择相关
+        self.top_p = 0.4
 
         # initialize thread pool
         self.thread_pool = ThreadPool(core)
@@ -537,13 +546,88 @@ class retroinfer_cache(KV_Cache):
 
         static_len = self.static_pattern_total if layer_idx == self.layer_num - 1 else self.static_pattern_total + 1
 
-        # search for TopK centroids
-        batch_gemm_softmax(queries, self.centroids[layer_idx], self.gemm_o, self.norm, self.sum, self.softmax_o,
-                           self.batch_groups, self.group_size, self.n_centroids, self.head_dim,
-                           self.RSQRT_DIM, 0)       # [batch_size*group_num, group_size, n_centroids]
-        dist = torch.sum(self.softmax_o, dim=1)     # [batch_size*group_num, n_centroids]
-        dist.masked_fill_(self.centroids_mask[layer_idx], self.DTYPE_MIN)
-        cI = torch.topk(dist, self.max_compute_cluster_num, dim=-1, largest=True, sorted=True)[1] # [batch_size*group_num, max_consider_cluster]
+        # 转换当前查询视图，便于索引
+        curr_q = queries.view(self.batch_groups, self.group_size, self.head_dim)
+        
+        # 确定需要重新计算的组
+        if self.prev_queries[layer_idx] is None:
+            # 首次运行，全部需要计算
+            reuse_mask = None
+            calc_indices = torch.arange(self.batch_groups, device=queries.device)
+        else:
+            # 计算复用掩码与索引（同一 group 内查询头的相似度是否都超过阈值）
+            prev_q = self.prev_queries[layer_idx]  # [batch_size*group_num, group_size, head_dim]
+            sim = cosine_similarity(prev_q, curr_q, dim=-1)  # [batch_size*group_num, group_size]
+            
+            reuse_mask = (sim >= self.reuse_threshold).all(dim=-1)
+            calc_indices = torch.nonzero(~reuse_mask).squeeze(1)
+        
+        if calc_indices.numel() == 0:
+            # 全部复用
+            cI = self.prev_cI[layer_idx].clone()  # [batch_size*group_num, max_compute_cluster_num]
+        elif calc_indices.numel() == self.batch_groups:
+            # 全部计算
+            # search for Top centroids
+            batch_gemm_softmax(queries, self.centroids[layer_idx], self.gemm_o, self.norm, self.sum, self.softmax_o,
+                            self.batch_groups, self.group_size, self.n_centroids, self.head_dim,
+                            self.RSQRT_DIM, 0)       # [batch_size*group_num, group_size, n_centroids]
+            dist = torch.sum(self.softmax_o, dim=1)     # [batch_size*group_num, n_centroids]
+            dist.masked_fill_(self.centroids_mask[layer_idx], self.DTYPE_MIN)
+            scores, TopK_cI = torch.topk(dist, self.max_compute_cluster_num, dim=-1, largest=True, sorted=True) # [batch_size*group_num, max_compute_cluster_num]
+            
+            cumsum_scores = torch.cumsum(scores, dim=1) / self.group_size # 累计概率，归一化
+            
+            # 确定实际的检索区大小
+            top_p_tensor = torch.full((self.batch_groups, 1), self.top_p, device=dist.device)  # [batch_size*group_num, 1]
+            raw_probes = torch.searchsorted(cumsum_scores, top_p_tensor).squeeze(-1) + 1       # [batch_size*group_num]
+            actual_probes = raw_probes.clamp(min=1, max=self.nprobe) # 最小为 1，最大为 nprobe
+            
+            # 构建 TopP 对应的索引矩阵 cI
+            TopP_cI = torch.empty_like(TopK_cI) # 形状与 TopK_cI 相同，不初始化
+            mask = torch.arange(self.nprobe, device=dist.device).unsqueeze(0) < actual_probes.unsqueeze(1) # [batch_size*group_num, nprobe]
+            TopP_cI[:, :self.nprobe] = torch.where(mask, TopK_cI[:, :self.nprobe], torch.tensor(-1, device=dist.device)) # 检索区根据掩码选择填充
+            idx = actual_probes.unsqueeze(1) + torch.arange(self.es_cluster_num, device=dist.device) # [batch_size*group_num, es_cluster_num]
+            TopP_cI[:, self.nprobe:] = torch.gather(TopK_cI, 1, idx) # 估计区根据列偏移填充
+            cI = TopP_cI
+            
+            # 全部计算时，需更新所有查询向量与聚类选择结果
+            self.prev_queries[layer_idx] = curr_q.clone()
+            self.prev_cI[layer_idx] = cI.clone()
+        else:
+            # 部分复用：只计算 calc_indices 中的组
+            sub_queries = curr_q[calc_indices]
+            sub_centroids = self.centroids[layer_idx][calc_indices]
+            N_calc = calc_indices.numel()
+            
+            # 使用全量张量的前部作为子集输出，不分配新内存
+            sub_gemm_o = self.gemm_o.view(self.batch_groups, self.group_size, self.n_centroids)[:N_calc]
+            sub_norm = self.norm[:N_calc]
+            sub_sum = self.sum[:N_calc]
+            sub_softmax_o = self.softmax_o[:N_calc]
+            
+            batch_gemm_softmax(sub_queries, sub_centroids, sub_gemm_o, sub_norm, sub_sum, sub_softmax_o,
+                            N_calc, self.group_size, self.n_centroids, self.head_dim,
+                            self.RSQRT_DIM, 0)
+            sub_dist = torch.sum(sub_softmax_o, dim=1)
+            sub_dist.masked_fill_(self.centroids_mask[layer_idx][calc_indices], self.DTYPE_MIN)
+            scores, TopK_cI = torch.topk(sub_dist, self.max_compute_cluster_num, dim=-1, largest=True, sorted=True)
+            cumsum_scores = torch.cumsum(scores, dim=1) / self.group_size
+            top_p_tensor = torch.full((N_calc, 1), self.top_p, device=sub_dist.device)
+            raw_probes = torch.searchsorted(cumsum_scores, top_p_tensor).squeeze(-1) + 1
+            actual_probes = raw_probes.clamp(min=1, max=self.nprobe)
+            TopP_cI = torch.empty_like(TopK_cI)
+            mask = torch.arange(self.nprobe, device=sub_dist.device).unsqueeze(0) < actual_probes.unsqueeze(1)
+            TopP_cI[:, :self.nprobe] = torch.where(mask, TopK_cI[:, :self.nprobe], torch.tensor(-1, device=sub_dist.device))
+            idx = actual_probes.unsqueeze(1) + torch.arange(self.es_cluster_num, device=sub_dist.device)
+            TopP_cI[:, self.nprobe:] = torch.gather(TopK_cI, 1, idx)
+            cI = torch.empty((self.batch_groups, self.max_compute_cluster_num), dtype=torch.int64, device=sub_dist.device)
+            cI[calc_indices] = TopP_cI
+            cI[reuse_mask] = self.prev_cI[layer_idx][reuse_mask]
+            
+            # 更新历史（只更新重新计算的组）
+            self.prev_queries[layer_idx][calc_indices] = curr_q[calc_indices]
+            self.prev_cI[layer_idx][calc_indices] = cI[calc_indices]
+        
         self.cluster_ids.copy_(cI[..., :self.nprobe])
 
         # estimation zone computation

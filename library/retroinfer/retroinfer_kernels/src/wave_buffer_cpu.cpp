@@ -206,6 +206,7 @@ public:
 
         for (int i = 0; i < num; ++i) {
             const int64_t& key = keys[i];
+            if (key == -1) break;
             auto& cluster_descriptor = cluster_descriptors[key];
             
             consider_block_num += cluster_descriptor.BlockNum;
