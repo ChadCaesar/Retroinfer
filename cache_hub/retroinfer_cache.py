@@ -40,7 +40,8 @@ class retroinfer_cache(KV_Cache):
         cache_unit_size: int,
         cache_cluster_num: int,
         num_gpus: int,
-        model_size: int
+        model_size: int,
+        eviction_policy: str = "lru"
     ) -> None:
         super().__init__(layer_num, batch_size, max_length, num_key_value_heads, num_heads, head_dim, dtype, layer_mapping, num_gpus, model_size)
         self.valid_start = valid_start
@@ -123,7 +124,8 @@ class retroinfer_cache(KV_Cache):
         # initialize the CPU Wave Buffer
         self.wave_buffer = [WaveBufferCPU(
             self.batch_size, self.kv_head, self.head_dim, self.nprobe, self.page_size, self.n_centroids, 
-            self.n_centroids+self.n_centroids_new, self.buffer_size, self.cache_size, self.core, thread_pool_pointer)
+            self.n_centroids+self.n_centroids_new, self.buffer_size, self.cache_size, self.core, thread_pool_pointer,
+            eviction_policy)
             for _ in range(self.layer_num)
         ]
 

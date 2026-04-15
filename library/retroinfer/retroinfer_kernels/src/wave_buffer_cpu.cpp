@@ -41,44 +41,71 @@ struct ClusterDescriptor {
     int CPUStartIndex = 0;          // start CPU vector index of the cluster
     int BlockNum = 0;               // number of blocks of the cluster
     int LastBlockSize = 0;          // valid vector number of the last block (only last block may be not full)
-    std::list<int64_t>::iterator LRUEntryPointer; // pointer for the cluster in the LRU list
+    std::list<int64_t>::iterator listEntryPointer; // pointer for the cluster in the list
+    bool SecondChancePin = false;          // SCLRU 固定标识
 };
+
+
+enum class EvictionPolicy { LRU, SCLRU };  // 驱逐策略
 
 
 class BufferManager {
 private:
-    const int capacity;             // number of total blocks for LRU Cache
+    const int capacity;             // number of total blocks for Cache
     const int nprobe;               // max number for each batch access
     const int block_size;           // full vector number for one block
     const int max_consider_block;   // max consider block number for each group
     ClusterDescriptor* cluster_descriptors; // cluster descriptors
     std::unordered_set<int> free_block_ids; // free block ids
-    std::list<int64_t> lru_keys;            // LRU list for recently used keys
+    std::list<int64_t> keys_list;            // list for recently used keys
 
     int miss_num = 0;                   // number of missing keys
     int hit_num = 0;                    // number of hit keys
     int64_t* _miss_keys = nullptr;      // missing keys
     int64_t* _hit_keys = nullptr;       // hit keys
 
-    inline void removeLeastRecentlyUsed() noexcept {
-        if (lru_keys.empty()) return;
+    EvictionPolicy policy;  // 驱逐策略
 
-        // find the least recently used key
-        const int64_t lru_key = lru_keys.back();
-        lru_keys.pop_back();
+    inline void evictKey() noexcept {
+        if (keys_list.empty()) return;
+
+        // find the evicted key
+        int64_t evict_key;
+        if (policy == EvictionPolicy::LRU) {
+            evict_key = keys_list.back();
+            keys_list.pop_back();
+        } else if (policy == EvictionPolicy::SCLRU) {
+            int64_t key;
+            while (true) {
+                key = keys_list.back();
+                auto& cluster_descriptor = cluster_descriptors[key];
+                keys_list.pop_back();
+                if (cluster_descriptor.SecondChancePin) {
+                    keys_list.push_front(key);
+                    cluster_descriptor.listEntryPointer = keys_list.begin();
+                    cluster_descriptor.SecondChancePin = false;
+                } else {
+                    break;
+                }
+            }
+            evict_key = key;
+        } else {
+            evict_key = keys_list.back();
+            keys_list.pop_back();
+        }
 
         // collect its block ids
-        int* block_ids = cluster_descriptors[lru_key].GPUBlockIDs;
-        free_block_ids.insert(block_ids, block_ids + cluster_descriptors[lru_key].BlockNum);
+        int* block_ids = cluster_descriptors[evict_key].GPUBlockIDs;
+        free_block_ids.insert(block_ids, block_ids + cluster_descriptors[evict_key].BlockNum);
 
         // set to miss
-        cluster_descriptors[lru_key].inBlockCache = false;
+        cluster_descriptors[evict_key].inBlockCache = false;
     }
 
 public:
-    BufferManager(int capacity, int nprobe, int block_size, int max_consider_block, ClusterDescriptor* cluster_descriptors)
+    BufferManager(int capacity, int nprobe, int block_size, int max_consider_block, ClusterDescriptor* cluster_descriptors, EvictionPolicy policy)
      : capacity(capacity), nprobe(nprobe), block_size(block_size), max_consider_block(max_consider_block),
-     cluster_descriptors(cluster_descriptors) {
+     cluster_descriptors(cluster_descriptors), policy(policy) {
         // set free block ids
         free_block_ids.reserve(capacity);
         for (int i = 0; i < capacity; ++i) {
@@ -93,7 +120,7 @@ public:
 
     ~BufferManager() {
         free_block_ids.clear();
-        lru_keys.clear();
+        keys_list.clear();
         if (_miss_keys != nullptr) delete[] _miss_keys;
         if (_hit_keys != nullptr) delete[] _hit_keys;
         cluster_descriptors = nullptr;
@@ -102,15 +129,16 @@ public:
     inline std::tuple<int, int> batch_update(
         int* update_block_ids, int* update_block_sizes, int* update_block_sizes_cumsum
     ) noexcept {
-        // reverse iterate over the hit keys and update the LRU order.
+        // reverse iterate over the hit keys and update the list order.
         for (int i = hit_num - 1; i >= 0; --i) {
             const int64_t& key = _hit_keys[i];
             auto& cluster_descriptor = cluster_descriptors[key];
 
-            // update LRU order
-            lru_keys.erase(cluster_descriptor.LRUEntryPointer);
-            lru_keys.push_front(key);
-            cluster_descriptor.LRUEntryPointer = lru_keys.begin();
+            // update list order
+            keys_list.erase(cluster_descriptor.listEntryPointer);
+            keys_list.push_front(key);
+            cluster_descriptor.listEntryPointer = keys_list.begin();
+            cluster_descriptor.SecondChancePin = true;
         }
 
         int admiss_num = 0;             // number of admissible keys
@@ -138,7 +166,7 @@ public:
 
         // evict to ensure the have enough space for the admissible keys
         while (free_block_ids.size() < static_cast<size_t>(total_blocks_needed)) {
-            removeLeastRecentlyUsed();
+            evictKey();
         }
 
         // insert the admissible keys into the cache
@@ -171,9 +199,9 @@ public:
             update_cumsum += cluster_descriptor.LastBlockSize;
             update_block_num++;
 
-            // update LRU order
-            lru_keys.push_front(key);
-            cluster_descriptor.LRUEntryPointer = lru_keys.begin();
+            // update list order
+            keys_list.push_front(key);
+            cluster_descriptor.listEntryPointer = keys_list.begin();
         }
 
         // if (update_block_num != total_blocks_needed) {
@@ -278,7 +306,9 @@ private:
     int group_per_thread;   // groups per thread
 
     MyThreadPool* pool_;                    // thread pool
-    std::vector<BufferManager*> caches;     // Buffer manager (LRU)
+    std::vector<BufferManager*> caches;     // Buffer manager
+
+    EvictionPolicy eviction_policy;  // 驱逐策略
 
     ClusterDescriptor* cluster_descriptors; // cluster descriptors, (batch_size*group_num, final_n_centroids)
 
@@ -327,10 +357,21 @@ public:
 
 
     WaveBufferCPU(int batch_size, int group_num, int dim, int nprobe, int block_size, 
-        int n_centroids, int final_n_centroids, int buffer_size, int capacity, int threads, MyThreadPool* pool)
+        int n_centroids, int final_n_centroids, int buffer_size, int capacity, int threads, MyThreadPool* pool, 
+        std::string policy)
      : batch_size(batch_size), group_num(group_num), dim(dim), nprobe(nprobe), block_size(block_size),
      n_centroids(n_centroids), final_n_centroids(final_n_centroids), buffer_size(buffer_size), capacity(capacity), pool_(pool) {
         batch_groups = batch_size * group_num;
+
+        // 解析驱逐策略
+        if (policy == "lru") {
+            eviction_policy = EvictionPolicy::LRU;
+        } else if (policy == "sclru") {
+            eviction_policy = EvictionPolicy::SCLRU;
+        } else {
+            eviction_policy = EvictionPolicy::LRU;
+        }
+
         // count valid threads
         int min_group_per_thread = 2;
         num_threads = std::min(threads, (batch_groups + min_group_per_thread - 1) / min_group_per_thread);
@@ -379,7 +420,8 @@ public:
         caches.resize(batch_groups, nullptr);
         for (int i = 0; i < batch_groups; ++i) {
             caches[i] = new BufferManager(capacity, nprobe, block_size, buffer_size,
-                                          cluster_descriptors + i * final_n_centroids);
+                                          cluster_descriptors + i * final_n_centroids,
+                                          eviction_policy);
         }
     }
 
@@ -822,10 +864,10 @@ namespace py = pybind11;
 
 PYBIND11_MODULE(TORCH_EXTENSION_NAME, m) {
     py::class_<WaveBufferCPU>(m, "WaveBufferCPU")
-        .def(py::init<int, int, int, int, int, int, int, int, int, int, MyThreadPool*>(),
+        .def(py::init<int, int, int, int, int, int, int, int, int, int, MyThreadPool*, std::string>(),
              py::arg("batch_size"), py::arg("group_num"), py::arg("dim"), py::arg("nprobe"), py::arg("block_size"), 
              py::arg("n_centroids"), py::arg("final_n_centroids"), py::arg("buffer_size"), py::arg("capacity"), 
-             py::arg("threads"), py::arg("pool"))
+             py::arg("threads"), py::arg("pool"), py::arg("policy"))
         .def("set_indices", &WaveBufferCPU::set_indices, 
             py::arg("hit_block_ids"), py::arg("hit_block_sizes"), py::arg("hit_block_sizes_cumsum"), py::arg("hit_block_nums"),
             py::arg("miss_block_ids"), py::arg("miss_block_sizes"), py::arg("miss_block_sizes_cumsum"), py::arg("miss_block_nums"),
