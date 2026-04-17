@@ -33,6 +33,9 @@ def parse_args():
                         choices=["gradientai/Llama-3-8B-Instruct-Gradient-1048k", "Qwen/Qwen2.5-7B-Instruct",               \
                         "Qwen/Qwen2.5-72B-Instruct", "meta-llama/Llama-3.1-8B-Instruct"], help="huggingface model name")
     parser.add_argument("--data_path", type=str, default="", help="Input json file path")
+    parser.add_argument("--cluster_select", type=str, default="top-p", choices=["top-k", "top-p"], help="How to search for top centroids")
+    parser.add_argument("--cluster_reuse", type=bool, default=True, help="Whether to reuse the last result of top centroids")
+    parser.add_argument("--eviction_policy", type=str, default="sclru", choices=["lru", "sclru"], help="Eviction policy in cache")
     args = parser.parse_args()
     
     return args
@@ -134,6 +137,11 @@ if __name__ == "__main__":
         attn_config = generate_config(model_name, 122880, attn_type)
     else:
         attn_config = generate_config(model_name, input_len, attn_type)
+    
+    if attn_type == 'RetroInfer':
+        attn_config[attn_type]['cluster_select'] = args.cluster_select
+        attn_config[attn_type]['cluster_reuse'] = args.cluster_reuse
+        attn_config[attn_type]['eviction_policy'] = args.eviction_policy
 
     llm = load_model(model_name, max_len, dtype, device)
     out = llm.generate(attention_type=attn_type,
