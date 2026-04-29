@@ -42,11 +42,15 @@ struct ClusterDescriptor {
     int BlockNum = 0;               // number of blocks of the cluster
     int LastBlockSize = 0;          // valid vector number of the last block (only last block may be not full)
     std::list<int64_t>::iterator listEntryPointer; // pointer for the cluster in the list
-    bool SecondChancePin = false;          // SCLRU 固定标识
+    bool SecondChancePin = false;   // SCLRU 固定标识
+    // ARC 列表标识
+    bool inHitOnceList = false;
+    bool inGhostList1 = false;
+    bool inGhostList2 = false;
 };
 
 
-enum class EvictionPolicy { LRU, SCLRU };  // 驱逐策略
+enum class EvictionPolicy { LRU, SCLRU, ARC };  // 驱逐策略
 
 
 class BufferManager {
@@ -57,7 +61,13 @@ private:
     const int max_consider_block;   // max consider block number for each group
     ClusterDescriptor* cluster_descriptors; // cluster descriptors
     std::unordered_set<int> free_block_ids; // free block ids
-    std::list<int64_t> keys_list;            // list for recently used keys
+    std::list<int64_t> keys_list;           // list for keys in cache
+    // ARC 列表
+    std::list<int64_t> true_list_1;
+    std::list<int64_t> true_list_2;
+    std::list<int64_t> ghost_list_1;
+    std::list<int64_t> ghost_list_2;
+    int p = 0;  // 动态调整边界参数
 
     int miss_num = 0;                   // number of missing keys
     int hit_num = 0;                    // number of hit keys
@@ -90,8 +100,38 @@ private:
             }
             evict_key = key;
         } else {
-            evict_key = keys_list.back();
-            keys_list.pop_back();
+            printf("Warning: the eviction policy is invalid, please choose one from the available list.\n");
+            return;
+        }
+
+        // collect its block ids
+        int* block_ids = cluster_descriptors[evict_key].GPUBlockIDs;
+        free_block_ids.insert(block_ids, block_ids + cluster_descriptors[evict_key].BlockNum);
+
+        // set to miss
+        cluster_descriptors[evict_key].inBlockCache = false;
+    }
+
+    inline void arcEvictKey() noexcept {
+        // find the evicted key
+        int64_t evict_key;
+        if (true_list_1.size() > p) {
+            evict_key = true_list_1.back();
+            true_list_1.pop_back();
+            cluster_descriptors[evict_key].inHitOnceList = false;
+            cluster_descriptors[evict_key].inGhostList1 = true;
+            ghost_list_1.push_front(evict_key);
+            cluster_descriptors[evict_key].listEntryPointer = ghost_list_1.begin();
+        } else {
+            if (true_list_2.empty()) {
+                p--;
+                return;
+            }
+            evict_key = true_list_2.back();
+            true_list_2.pop_back();
+            cluster_descriptors[evict_key].inGhostList2 = true;
+            ghost_list_2.push_front(evict_key);
+            cluster_descriptors[evict_key].listEntryPointer = ghost_list_2.begin();
         }
 
         // collect its block ids
@@ -121,27 +161,43 @@ public:
     ~BufferManager() {
         free_block_ids.clear();
         keys_list.clear();
+        true_list_1.clear();
+        true_list_2.clear();
         if (_miss_keys != nullptr) delete[] _miss_keys;
         if (_hit_keys != nullptr) delete[] _hit_keys;
         cluster_descriptors = nullptr;
     }
 
-    inline std::tuple<int, int> batch_update(
+    inline int batch_update(
         int* update_block_ids, int* update_block_sizes, int* update_block_sizes_cumsum
     ) noexcept {
         // reverse iterate over the hit keys and update the list order.
-        for (int i = hit_num - 1; i >= 0; --i) {
+        for (int i = 0; i < hit_num; ++i) {
             const int64_t& key = _hit_keys[i];
             auto& cluster_descriptor = cluster_descriptors[key];
 
             // update list order
-            keys_list.erase(cluster_descriptor.listEntryPointer);
-            keys_list.push_front(key);
-            cluster_descriptor.listEntryPointer = keys_list.begin();
-            cluster_descriptor.SecondChancePin = true;
+            if (policy == EvictionPolicy::LRU || policy == EvictionPolicy::SCLRU) {
+                keys_list.erase(cluster_descriptor.listEntryPointer);
+                keys_list.push_front(key);
+                cluster_descriptor.listEntryPointer = keys_list.begin();
+                cluster_descriptor.SecondChancePin = true;
+            } else if (policy == EvictionPolicy::ARC) {
+                if (cluster_descriptor.inHitOnceList) {
+                    true_list_1.erase(cluster_descriptor.listEntryPointer);
+                    true_list_2.push_front(key);
+                    cluster_descriptor.listEntryPointer = true_list_2.begin();
+                    cluster_descriptor.inHitOnceList = false;
+                } else {
+                    true_list_2.erase(cluster_descriptor.listEntryPointer);
+                    true_list_2.push_front(key);
+                    cluster_descriptor.listEntryPointer = true_list_2.begin();
+                }
+            }
         }
 
-        int admiss_num = 0;             // number of admissible keys
+        std::vector<int64_t> admiss_keys;  // 存储 admissible keys 便于遍历
+        admiss_keys.reserve(miss_num);     // 预分配内存，避免扩容开销
         int total_blocks_needed = 0;    // total number of blocks needed for cache update
         // iterate sequentially over the miss keys and filter out keys that exceed the capacity.
         for (int i = 0; i < miss_num; ++i) {
@@ -149,31 +205,64 @@ public:
             auto& cluster_descriptor = cluster_descriptors[key];
 
             if (total_blocks_needed + cluster_descriptor.BlockNum <= capacity) {
-                admiss_num++;
+                admiss_keys.push_back(key);
                 total_blocks_needed += cluster_descriptor.BlockNum;
+                if (policy == EvictionPolicy::ARC) {
+                    if (cluster_descriptor.inGhostList1) {
+                        p++;
+                        cluster_descriptor.inGhostList1 = false;
+                        ghost_list_1.erase(cluster_descriptor.listEntryPointer);
+                    }
+                    if (cluster_descriptor.inGhostList2) {
+                        p--;
+                        cluster_descriptor.inGhostList2 = false;
+                        ghost_list_2.erase(cluster_descriptor.listEntryPointer);
+                    }
+                }
             } else {
                 // exceed capacity, drop the following keys
                 break;
             }
         }
 
-        if (admiss_num == 0) {
+        if (admiss_keys.empty()) {
             // reset
             miss_num = 0;
             hit_num = 0;
-            return { 0, 0 };
+            return 0;
         }
 
         // evict to ensure the have enough space for the admissible keys
         while (free_block_ids.size() < static_cast<size_t>(total_blocks_needed)) {
-            evictKey();
+            if (policy == EvictionPolicy::LRU || policy == EvictionPolicy::SCLRU) {
+                evictKey();
+            } else if (policy == EvictionPolicy::ARC) {
+                p = std::max(p, 0);
+                arcEvictKey();
+            } else {
+                printf("Warning: the eviction policy is invalid, please choose one from the available list.\n");
+                return 0;
+            }
+        }
+
+        // 控制幽灵列表的大小
+        if (policy == EvictionPolicy::ARC) {
+            while (ghost_list_1.size() > true_list_1.size() + true_list_2.size()) {
+                int64_t key = ghost_list_1.back();
+                ghost_list_1.pop_back();
+                cluster_descriptors[key].inGhostList1 = false;
+            }
+            while (ghost_list_2.size() > true_list_1.size() + true_list_2.size()) {
+                int64_t key = ghost_list_2.back();
+                ghost_list_2.pop_back();
+                cluster_descriptors[key].inGhostList2 = false;
+            }
         }
 
         // insert the admissible keys into the cache
         int update_block_num = 0;
         int update_cumsum = 0;
-        for (int i = 0; i < admiss_num; ++i) {
-            const int64_t& key = _miss_keys[i];
+        for (int64_t key : admiss_keys) {
             auto& cluster_descriptor = cluster_descriptors[key];
             
             cluster_descriptor.inBlockCache = true;
@@ -200,8 +289,14 @@ public:
             update_block_num++;
 
             // update list order
-            keys_list.push_front(key);
-            cluster_descriptor.listEntryPointer = keys_list.begin();
+            if (policy == EvictionPolicy::LRU || policy == EvictionPolicy::SCLRU) {
+                keys_list.push_front(key);
+                cluster_descriptor.listEntryPointer = keys_list.begin();
+            } else if (policy == EvictionPolicy::ARC) {
+                true_list_1.push_front(key);
+                cluster_descriptor.listEntryPointer = true_list_1.begin();
+                cluster_descriptor.inHitOnceList = true;
+            }
         }
 
         // if (update_block_num != total_blocks_needed) {
@@ -212,7 +307,7 @@ public:
         miss_num = 0;
         hit_num = 0;
 
-        return { admiss_num, update_block_num };
+        return update_block_num;
     }
 
     inline std::tuple<int, int, int, int> batch_access(
@@ -368,8 +463,11 @@ public:
             eviction_policy = EvictionPolicy::LRU;
         } else if (policy == "sclru") {
             eviction_policy = EvictionPolicy::SCLRU;
+        } else if (policy == "arc") {
+            eviction_policy = EvictionPolicy::ARC;
         } else {
-            eviction_policy = EvictionPolicy::LRU;
+            printf("Warning: the eviction policy is invalid, please choose one from the available list.\n");
+            return;
         }
 
         // count valid threads
@@ -807,9 +905,9 @@ public:
             auto update_cache_block_ids_group = update_cache_indices + i * buffer_size;
             auto update_block_sizes_group = update_block_sizes + i * buffer_size;
             auto update_buffer_indices_group = update_buffer_indices + i * buffer_size;
-            auto [admiss_num, update_block_num] = caches[i]->batch_update(update_cache_block_ids_group,
-                                                                          update_block_sizes_group,
-                                                                          update_buffer_indices_group);
+            auto update_block_num = caches[i]->batch_update(update_cache_block_ids_group,
+                                                            update_block_sizes_group,
+                                                            update_buffer_indices_group);
             // std::fill(update_cache_block_ids_group + update_block_num, update_cache_block_ids_group + buffer_size, -1);
             // std::fill(update_block_sizes_group + update_block_num, update_block_sizes_group + buffer_size, 0);
             // std::fill(update_buffer_indices_group + update_block_num, update_buffer_indices_group + buffer_size, 0);

@@ -11,6 +11,7 @@ from cache_hub import flash_attn_cache, retroinfer_cache
 from attn_hub import prefill_full_flash_attn, decode_full_flash_attn, retroinfer_prefill_attn, retroinfer_decode_attn
 
 
+MODEL_ROOT = os.path.abspath(os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(__file__))), "models"))
 
 class LlamaLayer:
     """
@@ -56,8 +57,8 @@ class LlamaModel(LLM):
     ) -> None:
         super().__init__(model_name, max_length, dtype, device_map)
 
-        self.tokenizer = AutoTokenizer.from_pretrained(os.path.join("..", "models", model_name.split("/")[-1]))
-        self.config = LlamaConfig.from_pretrained(os.path.join("..", "models", model_name.split("/")[-1]))
+        self.tokenizer = AutoTokenizer.from_pretrained(os.path.join(MODEL_ROOT, model_name.split("/")[-1]))
+        self.config = LlamaConfig.from_pretrained(os.path.join(MODEL_ROOT, model_name.split("/")[-1]))
         self.num_layers = self.config.num_hidden_layers
         self.num_heads = self.config.num_attention_heads
         self.num_key_value_heads = self.config.num_key_value_heads
@@ -78,7 +79,7 @@ class LlamaModel(LLM):
 
 
     def init_model(self):
-        hf_llama = LlamaForCausalLM.from_pretrained(os.path.join("..", "models", self.model_name.split("/")[-1]), torch_dtype=self.dtype)
+        hf_llama = LlamaForCausalLM.from_pretrained(os.path.join(MODEL_ROOT, self.model_name.split("/")[-1]), torch_dtype=self.dtype)
 
         self.num_gpus = torch.cuda.device_count() if self.device_map == 'auto' else 1
         if self.device_map == 'auto' and self.num_gpus == 1:

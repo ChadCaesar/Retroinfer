@@ -24,7 +24,7 @@ def set_seed(seed):
 def parse_args():
     parser = argparse.ArgumentParser(description="Test example")
     parser.add_argument("--batch_size", type=int, default=1, help="Batch size")
-    parser.add_argument("--gen_len", type=int, default=100, help="Generation length")
+    parser.add_argument("--gen_len", type=int, default=1000, help="Generation length")
     parser.add_argument("--device", type=str, default="cuda:0", help="Device")
     parser.add_argument("--dtype", type=str, default="fp16", choices=["fp16", "bf16"], help="Dtype")
     parser.add_argument("--attn_type", type=str, default="RetroInfer",                                                      \
@@ -35,7 +35,7 @@ def parse_args():
     parser.add_argument("--data_path", type=str, default="", help="Input json file path")
     parser.add_argument("--cluster_select", type=str, default="top-p", choices=["top-k", "top-p"], help="How to search for top centroids")
     parser.add_argument("--cluster_reuse", type=bool, default=True, help="Whether to reuse the last result of top centroids")
-    parser.add_argument("--eviction_policy", type=str, default="sclru", choices=["lru", "sclru"], help="Eviction policy in cache")
+    parser.add_argument("--eviction_policy", type=str, default="sclru", choices=["lru", "sclru", "arc"], help="Eviction policy in cache")
     args = parser.parse_args()
     
     return args
@@ -99,7 +99,7 @@ if __name__ == "__main__":
 
     # load input data
     if data_path == "":
-        TEST_FILE = os.path.join(PROJECT_ROOT, "simple_test_data.json")
+        TEST_FILE = os.path.join(PROJECT_ROOT, "my_test_data.json")
     else:
         TEST_FILE = os.path.join(PROJECT_ROOT, f"{data_path}")
     print(colored(f"Loading test data from {TEST_FILE}", 'yellow'))
