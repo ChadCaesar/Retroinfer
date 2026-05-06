@@ -204,7 +204,14 @@ class LLM:
                 f"Cache hit rate: {hit_rate:.4f} (hits={cumulative_hit}, misses={cumulative_miss})\n",
                 'yellow'
             ))
-        
+        if hasattr(self.kv_cache, 'get_reuse_stats'):
+            reuse_rate, reuse_hits, reuse_total = self.kv_cache.get_reuse_stats()
+            if reuse_total > 0:
+                print(colored(
+                    f"Reuse hit rate: {reuse_rate:.4f} (hits={reuse_hits}, total={reuse_total})\n",
+                    'yellow'
+                ))
+
         outputs_ids = torch.cat(outputs_ids, dim=-1).tolist()
         
         return outputs_ids

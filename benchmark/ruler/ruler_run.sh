@@ -14,8 +14,8 @@
 # limitations under the License.
 
 
-if [ $# -ne 11 ]; then
-    echo "Usage: $0 <model_name> $1 <benchmark_name> $2 <attn_type> $3 <context length> $4 <task> $5 <dtype> $6 <budget_ratio> $7 <estimate_ratio> $8 <cluster_select> $9 <cluster_reuse> ${10} <eviction_policy>"
+if [ $# -ne 12 ]; then
+    echo "Usage: $0 <model_name> $1 <benchmark_name> $2 <attn_type> $3 <context length> $4 <task> $5 <dtype> $6 <budget_ratio> $7 <estimate_ratio> $8 <cluster_select> $9 <cluster_reuse> ${10} <eviction_policy> ${11} <top_p>"
     exit 1
 fi
 
@@ -31,6 +31,9 @@ ESTIMATE_RATIO=${8}
 CLUSTER_SELECT=${9}
 CLUSTER_REUSE=${10}
 EVICTION_POLICY=${11}
+TOP_P=${12}
+SAMPLE_COOLDOWN=${SAMPLE_COOLDOWN:-0}
+GPU_TEMP_LIMIT=${GPU_TEMP_LIMIT:-80}
 
 # Model and Tokenizer
 source ruler_config_models.sh
@@ -53,7 +56,7 @@ fi
 
 # Start client (prepare data / call model API / obtain final metrics)
 
-RESULTS_DIR="${ROOT_DIR}/${MODEL_NAME}/${BENCHMARK}/${MAX_SEQ_LENGTH}/${ATTN_TYPE}"
+RESULTS_DIR="${ROOT_DIR}/${MODEL_NAME}/${BENCHMARK}/${MAX_SEQ_LENGTH}/${ATTN_TYPE}_${CLUSTER_SELECT}_${CLUSTER_REUSE}_${EVICTION_POLICY}_${TOP_P}"
 DATA_DIR="${RESULTS_DIR}/data"
 PRED_DIR="${RESULTS_DIR}/pred"
 mkdir -p ${DATA_DIR}
@@ -90,6 +93,9 @@ python -u pred/call_api.py \
     --cluster_select ${CLUSTER_SELECT} \
     --cluster_reuse ${CLUSTER_REUSE} \
     --eviction_policy ${EVICTION_POLICY} \
+    --top_p ${TOP_P} \
+    --cooldown ${SAMPLE_COOLDOWN} \
+    --gpu_temp_limit ${GPU_TEMP_LIMIT} \
 
 python -u eval/evaluate.py \
     --data_dir ${PRED_DIR} \

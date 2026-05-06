@@ -32,6 +32,7 @@ prediction jsonl:
 
 import argparse
 import json
+import subprocess
 import yaml
 import os
 import sys
@@ -75,7 +76,7 @@ def seed_everything(seed):
 
 
 class HuggingFaceModel:
-    def __init__(self, model_name, max_len, max_new_len, attn_type, dtype, device, budget_ratio, estimate_ratio, synthetic_len, cluster_select, cluster_reuse, eviction_policy) -> None:
+    def __init__(self, model_name, max_len, max_new_len, attn_type, dtype, device, budget_ratio, estimate_ratio, synthetic_len, cluster_select, cluster_reuse, eviction_policy, top_p=0.4) -> None:
         if 'Llama' in model_name:
             llm = LlamaModel(model_name,
                 max_length=max_len+max_new_len,
@@ -100,6 +101,7 @@ class HuggingFaceModel:
         self.cluster_select = cluster_select
         self.cluster_reuse = cluster_reuse
         self.eviction_policy = eviction_policy
+        self.top_p = top_p
 
     def __call__(self, prompt: str, **kwargs) -> Dict[str, List[str]]:
         generated_text = get_pred(
@@ -113,7 +115,8 @@ class HuggingFaceModel:
             synthetic_len=self.synthetic_len,
             cluster_select=self.cluster_select,
             cluster_reuse=self.cluster_reuse,
-            eviction_policy=self.eviction_policy
+            eviction_policy=self.eviction_policy,
+            top_p=self.top_p
         )
 
         return {'text': [generated_text]}
@@ -124,7 +127,7 @@ class ServerAction(argparse.Action):
         namespace.server_type = values
 
 
-def get_llm(model_name, max_len, max_new_len, attn_type, dtype, device, budget_ratio, estimate_ratio, synthetic_len, cluster_select, cluster_reuse, eviction_policy):
+def get_llm(model_name, max_len, max_new_len, attn_type, dtype, device, budget_ratio, estimate_ratio, synthetic_len, cluster_select, cluster_reuse, eviction_policy, top_p=0.4):
     if args.server_type == 'hf':
         llm = HuggingFaceModel(
             model_name=model_name,
@@ -139,11 +142,42 @@ def get_llm(model_name, max_len, max_new_len, attn_type, dtype, device, budget_r
             cluster_select=cluster_select,
             cluster_reuse=cluster_reuse,
             eviction_policy=eviction_policy,
+            top_p=top_p,
         )
     else:
         raise RuntimeError(f'Unsupported server type {args.server_type}')
 
     return llm
+
+
+# Module-level globals set from CLI args, used by get_pred() for cooldown
+_COOLDOWN_SECONDS = 0
+_GPU_TEMP_LIMIT = 80
+_COOLDOWN_LOCK = threading.Lock()
+
+
+def _cool_down():
+    """Sleep and optionally wait for GPU temperature to drop."""
+    if _COOLDOWN_SECONDS <= 0:
+        return
+    with _COOLDOWN_LOCK:
+        try:
+            temps = subprocess.check_output(
+                ['nvidia-smi', '--query-gpu=temperature.gpu', '--format=csv,noheader'],
+                text=True
+            ).strip().split('\n')
+            max_temp = max(int(t) for t in temps if t.strip())
+            while max_temp >= _GPU_TEMP_LIMIT:
+                print(f"GPU temp {max_temp}C >= {_GPU_TEMP_LIMIT}C, waiting 30s...")
+                time.sleep(30)
+                temps = subprocess.check_output(
+                    ['nvidia-smi', '--query-gpu=temperature.gpu', '--format=csv,noheader'],
+                    text=True
+                ).strip().split('\n')
+                max_temp = max(int(t) for t in temps if t.strip())
+        except Exception:
+            pass
+        time.sleep(_COOLDOWN_SECONDS)
 
 
 def get_pred(
@@ -158,6 +192,7 @@ def get_pred(
     cluster_select: str,
     cluster_reuse: bool,
     eviction_policy: str,
+    top_p: float = 0.4,
 ) -> str:
 
     llm.tokenizer.pad_token = llm.tokenizer.eos_token
@@ -178,6 +213,7 @@ def get_pred(
         attn_config[attn_type]['cluster_select'] = cluster_select
         attn_config[attn_type]['cluster_reuse'] = cluster_reuse
         attn_config[attn_type]['eviction_policy'] = eviction_policy
+        attn_config[attn_type]['top_p'] = top_p
 
     out = llm.generate(attention_type=attn_type,
         inputs_ids = input_ids.to(llm.layers[0].device),
@@ -189,6 +225,7 @@ def get_pred(
     output = llm.tokenizer.batch_decode(out, skip_special_tokens=True)
             
     print("Chunked generation:", output[0])
+    _cool_down()
     return output[0]
 
 
@@ -213,8 +250,12 @@ def get_output(llm, outputs_parallel, idx, index, input, outputs, others, trunca
 
 
 def main(args):
+    global _COOLDOWN_SECONDS, _GPU_TEMP_LIMIT
+    _COOLDOWN_SECONDS = args.cooldown
+    _GPU_TEMP_LIMIT = args.gpu_temp_limit
+
     start_time = time.time()
-    
+
     curr_folder = os.path.dirname(os.path.abspath(__file__))
     
     try:
@@ -254,7 +295,7 @@ def main(args):
     dtype = torch.float16 if args.dtype == 'fp16' else torch.bfloat16
     llm = get_llm(args.model_name, args.max_len, config['tokens_to_generate'], args.attn_type, dtype, args.device,
                   budget_ratio=args.budget_ratio, estimate_ratio=args.estimate_ratio, synthetic_len=args.synthetic_len,
-                  cluster_select=args.cluster_select, cluster_reuse=args.cluster_reuse, eviction_policy=args.eviction_policy)
+                  cluster_select=args.cluster_select, cluster_reuse=args.cluster_reuse, eviction_policy=args.eviction_policy, top_p=args.top_p)
     
     threads = []
     outputs_parallel = [{} for _ in range(len(data))]
@@ -337,6 +378,9 @@ if __name__ == '__main__':
     parser.add_argument("--cluster_select", type=str, default="top-p", choices=["top-k", "top-p"], help="How to search for top centroids")
     parser.add_argument("--cluster_reuse", type=bool, default=True, help="Whether to reuse the last result of top centroids")
     parser.add_argument("--eviction_policy", type=str, default="sclru", choices=["lru", "sclru", "arc"], help="Eviction policy in cache")
+    parser.add_argument("--top_p", type=float, default=0.4, help="Top-p threshold for cluster selection (only used when cluster_select=top-p)")
+    parser.add_argument("--cooldown", type=int, default=0, help="Cooldown seconds between each prefill+decode run (use with --num_threads 1)")
+    parser.add_argument("--gpu_temp_limit", type=int, default=80, help="Max GPU temp before waiting")
 
     parser = parse_attn_args(parser)
 

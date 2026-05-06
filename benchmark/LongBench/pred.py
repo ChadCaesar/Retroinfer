@@ -7,6 +7,7 @@ from tqdm import tqdm
 import numpy as np
 import random
 import argparse
+import subprocess
 import time
 
 PROJECT_ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), '../..'))
@@ -21,6 +22,26 @@ model2maxlen = json.load(open("config/model2maxlen.json", "r"))
 # we design specific prompt format and max generation length for each task, feel free to modify them to optimize model output
 dataset2prompt = json.load(open("config/dataset2prompt.json", "r"))
 dataset2maxlen = json.load(open("config/dataset2maxlen.json", "r"))
+
+
+def _wait_gpu_cool(max_temp_limit):
+    """Wait until GPU temperature drops below max_temp_limit."""
+    try:
+        temps = subprocess.check_output(
+            ['nvidia-smi', '--query-gpu=temperature.gpu', '--format=csv,noheader'],
+            text=True
+        ).strip().split('\n')
+        current_max = max(int(t) for t in temps if t.strip())
+        while current_max >= max_temp_limit:
+            print(f"GPU temp {current_max}C >= {max_temp_limit}C, waiting 30s...")
+            time.sleep(30)
+            temps = subprocess.check_output(
+                ['nvidia-smi', '--query-gpu=temperature.gpu', '--format=csv,noheader'],
+                text=True
+            ).strip().split('\n')
+            current_max = max(int(t) for t in temps if t.strip())
+    except Exception:
+        pass  # nvidia-smi not available, skip temp check
 
 def parse_args(args=None):
     parser = argparse.ArgumentParser()
@@ -37,6 +58,9 @@ def parse_args(args=None):
     parser.add_argument("--cluster_select", type=str, default="top-p", choices=["top-k", "top-p"], help="How to search for top centroids")
     parser.add_argument("--cluster_reuse", type=bool, default=True, help="Whether to reuse the last result of top centroids")
     parser.add_argument("--eviction_policy", type=str, default="sclru", choices=["lru", "sclru", "arc"], help="Eviction policy in cache")
+    parser.add_argument("--top_p", type=float, default=0.4, help="Top-p threshold for cluster selection (only used when cluster_select=top-p)")
+    parser.add_argument("--cooldown", type=int, default=0, help="Cooldown seconds between each prefill+decode run to prevent GPU overheating")
+    parser.add_argument("--gpu_temp_limit", type=int, default=80, help="Max GPU temp before waiting during cooldown")
 
     parser = parse_attn_args(parser)
 
@@ -63,6 +87,7 @@ def get_pred(llm, data, max_new_tokens, prompt_format, model_name, out_path, arg
             attn_config[attn_type]['cluster_select'] = args.cluster_select
             attn_config[attn_type]['cluster_reuse'] = args.cluster_reuse
             attn_config[attn_type]['eviction_policy'] = args.eviction_policy
+            attn_config[attn_type]['top_p'] = args.top_p
 
         out = llm.generate(
             attention_type=attn_type,
@@ -75,7 +100,11 @@ def get_pred(llm, data, max_new_tokens, prompt_format, model_name, out_path, arg
         output = llm.tokenizer.batch_decode(out, skip_special_tokens=True)
 
         torch.cuda.empty_cache()
-                
+
+        if args.cooldown > 0:
+            time.sleep(args.cooldown)
+            _wait_gpu_cool(args.gpu_temp_limit)
+
         print("Chunked generation:", output[0][:50])
 
         pred = output[0]

@@ -36,6 +36,7 @@ def parse_args():
     parser.add_argument("--cluster_select", type=str, default="top-p", choices=["top-k", "top-p"], help="How to search for top centroids")
     parser.add_argument("--cluster_reuse", type=bool, default=True, help="Whether to reuse the last result of top centroids")
     parser.add_argument("--eviction_policy", type=str, default="sclru", choices=["lru", "sclru", "arc"], help="Eviction policy in cache")
+    parser.add_argument("--top_p", type=float, default=0.4, help="Top-p threshold for cluster selection (only used when cluster_select=top-p)")
     args = parser.parse_args()
     
     return args
@@ -131,6 +132,7 @@ if __name__ == "__main__":
         attn_config[attn_type]['cluster_select'] = args.cluster_select
         attn_config[attn_type]['cluster_reuse'] = args.cluster_reuse
         attn_config[attn_type]['eviction_policy'] = args.eviction_policy
+        attn_config[attn_type]['top_p'] = args.top_p
 
     llm = load_model(model_name, max_len, dtype, device)
     out = llm.generate(attention_type=attn_type,

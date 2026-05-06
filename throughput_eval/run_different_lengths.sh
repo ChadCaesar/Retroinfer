@@ -11,7 +11,7 @@ RETROINFER_ARGS="--cluster_select ${CLUSTER_SELECT} --cluster_reuse ${CLUSTER_RE
 ################################ Full Attention ################################
 for bsz in 1 2 4 8
 do
-    for round in 1
+    for round in 1 2 3
     do
         numactl --cpunodebind=0 --membind=0 python -u test.py \
             --model_name gradientai/Llama-3-8B-Instruct-Gradient-1048k \
@@ -25,7 +25,7 @@ done
 
 for bsz in 1 2 4
 do
-    for round in 1
+    for round in 1 2 3
     do
         numactl --cpunodebind=0 --membind=0 python -u test.py \
             --model_name gradientai/Llama-3-8B-Instruct-Gradient-1048k \
@@ -39,7 +39,7 @@ done
 
 for bsz in 1 2
 do
-    for round in 1
+    for round in 1 2 3
     do
         numactl --cpunodebind=0 --membind=0 python -u test.py \
             --model_name gradientai/Llama-3-8B-Instruct-Gradient-1048k \
@@ -53,7 +53,7 @@ done
 
 for bsz in 1
 do
-    for round in 1
+    for round in 1 2 3
     do
         numactl --cpunodebind=0 --membind=0 python -u test.py \
             --model_name gradientai/Llama-3-8B-Instruct-Gradient-1048k \
@@ -69,7 +69,7 @@ done
 # 60K
 for bsz in 1 2 4 8 16 32
 do
-    for round in 1
+    for round in 1 2 3
     do
         numactl --cpunodebind=0 --membind=0 python -u test.py \
             --model_name gradientai/Llama-3-8B-Instruct-Gradient-1048k \
@@ -82,7 +82,7 @@ done
 
 for bsz in 64
 do
-    for round in 1
+    for round in 1 2 3
     do
         numactl --cpunodebind=0 --membind=0,1 python -u test.py \
             --model_name gradientai/Llama-3-8B-Instruct-Gradient-1048k \
@@ -96,7 +96,7 @@ done
 # 120K
 for bsz in 1 2 4 8 16
 do
-    for round in 1
+    for round in 1 2 3
     do
         numactl --cpunodebind=0 --membind=0 python -u test.py \
             --model_name gradientai/Llama-3-8B-Instruct-Gradient-1048k \
@@ -109,7 +109,7 @@ done
 
 for bsz in 32
 do
-    for round in 1
+    for round in 1 2 3
     do
         numactl --cpunodebind=0 --membind=0,1 python -u test.py \
             --model_name gradientai/Llama-3-8B-Instruct-Gradient-1048k \
@@ -123,7 +123,7 @@ done
 # 240K
 for bsz in 1 2 4 8
 do
-    for round in 1
+    for round in 1 2 3
     do
         numactl --cpunodebind=0 --membind=0 python -u test.py \
             --model_name gradientai/Llama-3-8B-Instruct-Gradient-1048k \
@@ -136,7 +136,7 @@ done
 
 for bsz in 16
 do
-    for round in 1
+    for round in 1 2 3
     do
         numactl --cpunodebind=0 --membind=0,1 python -u test.py \
             --model_name gradientai/Llama-3-8B-Instruct-Gradient-1048k \
@@ -150,7 +150,7 @@ done
 # 480K
 for bsz in 1 2 4
 do
-    for round in 1
+    for round in 1 2 3
     do
         numactl --cpunodebind=0 --membind=0 python -u test.py \
             --model_name gradientai/Llama-3-8B-Instruct-Gradient-1048k \
@@ -163,7 +163,7 @@ done
 
 for bsz in 8
 do
-    for round in 1
+    for round in 1 2 3
     do
         numactl --cpunodebind=0 --membind=0,1 python -u test.py \
             --model_name gradientai/Llama-3-8B-Instruct-Gradient-1048k \
@@ -177,7 +177,7 @@ done
 # 1024K
 for bsz in 1 2
 do
-    for round in 1
+    for round in 1 2 3
     do
         numactl --cpunodebind=0 --membind=0 python -u test.py \
             --model_name gradientai/Llama-3-8B-Instruct-Gradient-1048k \
@@ -190,7 +190,7 @@ done
 
 for bsz in 4
 do
-    for round in 1
+    for round in 1 2 3
     do
         numactl --cpunodebind=0 --membind=0,1 python -u test.py \
             --model_name gradientai/Llama-3-8B-Instruct-Gradient-1048k \

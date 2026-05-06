@@ -43,7 +43,8 @@ class retroinfer_cache(KV_Cache):
         model_size: int,
         cluster_select: str,
         cluster_reuse: bool,
-        eviction_policy: str
+        eviction_policy: str,
+        top_p: float = 0.4
     ) -> None:
         super().__init__(layer_num, batch_size, max_length, num_key_value_heads, num_heads, head_dim, dtype, layer_mapping, num_gpus, model_size)
         self.valid_start = valid_start
@@ -101,7 +102,7 @@ class retroinfer_cache(KV_Cache):
 
         # Top-p 累计概率选择相关
         self.cluster_select = cluster_select
-        self.top_p = 0.4
+        self.top_p = top_p
 
         # 复用聚类选择结果相关
         self.cluster_reuse = cluster_reuse
@@ -109,6 +110,8 @@ class retroinfer_cache(KV_Cache):
         self.prev_cI = [None] * self.layer_num
         self.cI_buffer = torch.empty((self.batch_groups, self.max_compute_cluster_num), dtype=torch.int64, device=self.layer_mapping[str(0)])
         self.reuse_threshold = 0.95
+        self.reuse_hits = 0
+        self.reuse_total = 0
 
         # 缓存驱逐策略相关
         self.eviction_policy = eviction_policy
@@ -560,6 +563,7 @@ class retroinfer_cache(KV_Cache):
         curr_q = queries.view(self.batch_groups, self.group_size, self.head_dim)
         
         if self.cluster_reuse:
+            self.reuse_total += self.batch_groups
             # 确定需要重新计算的组
             if self.prev_queries[layer_idx] is None:
                 # 首次运行，全部需要计算
@@ -575,6 +579,7 @@ class retroinfer_cache(KV_Cache):
             
             if calc_indices.numel() == 0:
                 # 全部复用
+                self.reuse_hits += self.batch_groups
                 cI = self.prev_cI[layer_idx]  # [batch_size*group_num, max_compute_cluster_num]
             elif calc_indices.numel() == self.batch_groups:
                 # 全部计算
@@ -634,11 +639,13 @@ class retroinfer_cache(KV_Cache):
                 else:
                     cI[calc_indices] = TopK_cI
                 cI[reuse_mask] = self.prev_cI[layer_idx][reuse_mask]
-                
+                self.reuse_hits += reuse_mask.sum().item()
+
                 # 更新历史（只更新重新计算的组）
                 self.prev_queries[layer_idx][calc_indices] = curr_q[calc_indices]
                 self.prev_cI[layer_idx][calc_indices] = cI[calc_indices]
         else:
+            self.reuse_total += self.batch_groups
             # search for Top centroids
             batch_gemm_softmax(queries, self.centroids[layer_idx], self.gemm_o, self.norm, self.sum, self.softmax_o,
                             self.batch_groups, self.group_size, self.n_centroids, self.head_dim,
@@ -725,3 +732,9 @@ class retroinfer_cache(KV_Cache):
         if total == 0:
             return 0.0, 0, 0
         return total_hit / total, int(total_hit), int(total_miss)
+
+    def get_reuse_stats(self):
+        """Return the cluster reuse hit rate aggregated across all decode steps."""
+        if self.reuse_total == 0:
+            return 0.0, 0, 0
+        return self.reuse_hits / self.reuse_total, int(self.reuse_hits), int(self.reuse_total)
