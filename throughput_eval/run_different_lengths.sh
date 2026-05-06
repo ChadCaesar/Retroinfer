@@ -2,6 +2,12 @@ export CUDA_VISIBLE_DEVICES=0
 
 mkdir -p different_lengths_logs
 
+# Optimization parameters (configurable)
+CLUSTER_SELECT="top-p"
+CLUSTER_REUSE="True"
+EVICTION_POLICY="sclru"
+RETROINFER_ARGS="--cluster_select ${CLUSTER_SELECT} --cluster_reuse ${CLUSTER_REUSE} --eviction_policy ${EVICTION_POLICY}"
+
 ################################ Full Attention ################################
 for bsz in 1 2 4 8
 do
@@ -70,7 +76,7 @@ do
             --attn_type RetroInfer \
             --context_len 60000 \
             --task_name NIAH \
-            --batch_size $bsz > different_lengths_logs/retroinfer_60k_bsz${bsz}_${round}.log 2>&1
+            ${RETROINFER_ARGS} --batch_size $bsz > different_lengths_logs/retroinfer_60k_bsz${bsz}_${round}.log 2>&1
     done
 done
 
@@ -83,7 +89,7 @@ do
             --attn_type RetroInfer \
             --context_len 60000 \
             --task_name NIAH \
-            --batch_size $bsz > different_lengths_logs/retroinfer_60k_bsz${bsz}_${round}.log 2>&1
+            ${RETROINFER_ARGS} --batch_size $bsz > different_lengths_logs/retroinfer_60k_bsz${bsz}_${round}.log 2>&1
     done
 done
 
@@ -97,7 +103,7 @@ do
             --attn_type RetroInfer \
             --context_len 120000 \
             --task_name NIAH \
-            --batch_size $bsz > different_lengths_logs/retroinfer_120k_bsz${bsz}_${round}.log 2>&1
+            ${RETROINFER_ARGS} --batch_size $bsz > different_lengths_logs/retroinfer_120k_bsz${bsz}_${round}.log 2>&1
     done
 done
 
@@ -110,7 +116,7 @@ do
             --attn_type RetroInfer \
             --context_len 120000 \
             --task_name NIAH \
-            --batch_size $bsz > different_lengths_logs/retroinfer_120k_bsz${bsz}_${round}.log 2>&1
+            ${RETROINFER_ARGS} --batch_size $bsz > different_lengths_logs/retroinfer_120k_bsz${bsz}_${round}.log 2>&1
     done
 done
 
@@ -124,7 +130,7 @@ do
             --attn_type RetroInfer \
             --context_len 240000 \
             --task_name NIAH \
-            --batch_size $bsz > different_lengths_logs/retroinfer_240k_bsz${bsz}_${round}.log 2>&1
+            ${RETROINFER_ARGS} --batch_size $bsz > different_lengths_logs/retroinfer_240k_bsz${bsz}_${round}.log 2>&1
     done
 done
 
@@ -137,7 +143,7 @@ do
             --attn_type RetroInfer \
             --context_len 240000 \
             --task_name NIAH \
-            --batch_size $bsz > different_lengths_logs/retroinfer_240k_bsz${bsz}_${round}.log 2>&1
+            ${RETROINFER_ARGS} --batch_size $bsz > different_lengths_logs/retroinfer_240k_bsz${bsz}_${round}.log 2>&1
     done
 done
 
@@ -151,7 +157,7 @@ do
             --attn_type RetroInfer \
             --context_len 480000 \
             --task_name NIAH \
-            --batch_size $bsz > different_lengths_logs/retroinfer_480k_bsz${bsz}_${round}.log 2>&1
+            ${RETROINFER_ARGS} --batch_size $bsz > different_lengths_logs/retroinfer_480k_bsz${bsz}_${round}.log 2>&1
     done
 done
 
@@ -164,7 +170,7 @@ do
             --attn_type RetroInfer \
             --context_len 480000 \
             --task_name NIAH \
-            --batch_size $bsz > different_lengths_logs/retroinfer_480k_bsz${bsz}_${round}.log 2>&1
+            ${RETROINFER_ARGS} --batch_size $bsz > different_lengths_logs/retroinfer_480k_bsz${bsz}_${round}.log 2>&1
     done
 done
 
@@ -178,7 +184,7 @@ do
             --attn_type RetroInfer \
             --context_len 1024000 \
             --task_name NIAH \
-            --batch_size $bsz > different_lengths_logs/retroinfer_1024k_bsz${bsz}_${round}.log 2>&1
+            ${RETROINFER_ARGS} --batch_size $bsz > different_lengths_logs/retroinfer_1024k_bsz${bsz}_${round}.log 2>&1
     done
 done
 
@@ -191,7 +197,7 @@ do
             --attn_type RetroInfer \
             --context_len 1024000 \
             --task_name NIAH \
-            --batch_size $bsz > different_lengths_logs/retroinfer_1024k_bsz${bsz}_${round}.log 2>&1
+            ${RETROINFER_ARGS} --batch_size $bsz > different_lengths_logs/retroinfer_1024k_bsz${bsz}_${round}.log 2>&1
     done
 done
 

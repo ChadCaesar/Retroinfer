@@ -1,6 +1,11 @@
 
 mkdir -p different_models_logs
 
+# Optimization parameters (configurable)
+CLUSTER_SELECT="top-p"
+CLUSTER_REUSE="True"
+EVICTION_POLICY="sclru"
+RETROINFER_ARGS="--cluster_select ${CLUSTER_SELECT} --cluster_reuse ${CLUSTER_REUSE} --eviction_policy ${EVICTION_POLICY}"
 
 export CUDA_VISIBLE_DEVICES=0
 ################################ Full Attention ################################
@@ -43,7 +48,7 @@ do
             --attn_type RetroInfer \
             --context_len 120000 \
             --task_name NIAH \
-            --batch_size $bsz > different_models_logs/retroinfer_llama31_bsz${bsz}_${round}.log 2>&1
+            ${RETROINFER_ARGS} --batch_size $bsz > different_models_logs/retroinfer_llama31_bsz${bsz}_${round}.log 2>&1
     done
 done
 
@@ -56,7 +61,7 @@ do
             --attn_type RetroInfer \
             --context_len 120000 \
             --task_name NIAH \
-            --batch_size $bsz > different_models_logs/retroinfer_llama31_bsz${bsz}_${round}.log 2>&1
+            ${RETROINFER_ARGS} --batch_size $bsz > different_models_logs/retroinfer_llama31_bsz${bsz}_${round}.log 2>&1
     done
 done
 
@@ -70,7 +75,7 @@ do
             --attn_type RetroInfer \
             --context_len 120000 \
             --task_name NIAH \
-            --batch_size $bsz > different_models_logs/retroinfer_qwen_bsz${bsz}_${round}.log 2>&1
+            ${RETROINFER_ARGS} --batch_size $bsz > different_models_logs/retroinfer_qwen_bsz${bsz}_${round}.log 2>&1
     done
 done
 
@@ -83,7 +88,7 @@ do
             --attn_type RetroInfer \
             --context_len 120000 \
             --task_name NIAH \
-            --batch_size $bsz > different_models_logs/retroinfer_qwen_bsz${bsz}_${round}.log 2>&1
+            ${RETROINFER_ARGS} --batch_size $bsz > different_models_logs/retroinfer_qwen_bsz${bsz}_${round}.log 2>&1
     done
 done
 
@@ -96,7 +101,7 @@ do
             --attn_type RetroInfer \
             --context_len 120000 \
             --task_name NIAH \
-            --batch_size $bsz > different_models_logs/retroinfer_qwen_bsz${bsz}_${round}.log 2>&1
+            ${RETROINFER_ARGS} --batch_size $bsz > different_models_logs/retroinfer_qwen_bsz${bsz}_${round}.log 2>&1
     done
 done
 unset CUDA_VISIBLE_DEVICES
@@ -130,7 +135,7 @@ do
             --device auto \
             --context_len 120000 \
             --task_name NIAH \
-            --batch_size $bsz > different_models_logs/retroinfer_qwen72b_bsz${bsz}_${round}.log 2>&1
+            ${RETROINFER_ARGS} --batch_size $bsz > different_models_logs/retroinfer_qwen72b_bsz${bsz}_${round}.log 2>&1
     done
 done
 
@@ -144,7 +149,7 @@ do
             --device auto \
             --context_len 120000 \
             --task_name NIAH \
-            --batch_size $bsz > different_models_logs/retroinfer_qwen72b_bsz${bsz}_${round}.log 2>&1
+            ${RETROINFER_ARGS} --batch_size $bsz > different_models_logs/retroinfer_qwen72b_bsz${bsz}_${round}.log 2>&1
     done
 done
 
@@ -158,7 +163,7 @@ do
             --device auto \
             --context_len 120000 \
             --task_name NIAH \
-            --batch_size $bsz > different_models_logs/retroinfer_qwen72b_bsz${bsz}_${round}.log 2>&1
+            ${RETROINFER_ARGS} --batch_size $bsz > different_models_logs/retroinfer_qwen72b_bsz${bsz}_${round}.log 2>&1
     done
 done
 unset CUDA_VISIBLE_DEVICES

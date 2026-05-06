@@ -33,6 +33,9 @@ def parse_args():
                         "Qwen/Qwen2.5-72B-Instruct", "meta-llama/Llama-3.1-8B-Instruct"], help="huggingface model name")
     parser.add_argument("--task_name", type=str, default="multivalue", choices=["NIAH", "fwe", "vt", "qa1"],                \
                         help="Test task name")
+    parser.add_argument("--cluster_select", type=str, default="top-p", choices=["top-k", "top-p"], help="How to search for top centroids")
+    parser.add_argument("--cluster_reuse", type=bool, default=True, help="Whether to reuse the last result of top centroids")
+    parser.add_argument("--eviction_policy", type=str, default="sclru", choices=["lru", "sclru", "arc"], help="Eviction policy in cache")
     args = parser.parse_args()
     
     return args
@@ -123,6 +126,11 @@ if __name__ == "__main__":
     gen_len = 100
     max_len = input_len + gen_len
     print(colored(f"Input length: {input_len}", 'yellow'))
+
+    if attn_type == 'RetroInfer':
+        attn_config[attn_type]['cluster_select'] = args.cluster_select
+        attn_config[attn_type]['cluster_reuse'] = args.cluster_reuse
+        attn_config[attn_type]['eviction_policy'] = args.eviction_policy
 
     llm = load_model(model_name, max_len, dtype, device)
     out = llm.generate(attention_type=attn_type,

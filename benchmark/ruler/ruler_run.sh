@@ -14,8 +14,8 @@
 # limitations under the License.
 
 
-if [ $# -ne 8 ]; then
-    echo "Usage: $0 <model_name> $1 <benchmark_name> $2 <attn_type> $3 <context length> $4 <task> $5 <dtype> $6 <budget_ratio> $7 <estimate_ratio>"
+if [ $# -ne 11 ]; then
+    echo "Usage: $0 <model_name> $1 <benchmark_name> $2 <attn_type> $3 <context length> $4 <task> $5 <dtype> $6 <budget_ratio> $7 <estimate_ratio> $8 <cluster_select> $9 <cluster_reuse> ${10} <eviction_policy>"
     exit 1
 fi
 
@@ -28,6 +28,9 @@ ATTN_TYPE=${3}
 DEVICE=auto
 BUDGET_RATIO=${7}
 ESTIMATE_RATIO=${8}
+CLUSTER_SELECT=${9}
+CLUSTER_REUSE=${10}
+EVICTION_POLICY=${11}
 
 # Model and Tokenizer
 source ruler_config_models.sh
@@ -49,7 +52,7 @@ if [ -z "${TASKS}" ]; then
 fi
 
 # Start client (prepare data / call model API / obtain final metrics)
-    
+
 RESULTS_DIR="${ROOT_DIR}/${MODEL_NAME}/${BENCHMARK}/${MAX_SEQ_LENGTH}/${ATTN_TYPE}"
 DATA_DIR="${RESULTS_DIR}/data"
 PRED_DIR="${RESULTS_DIR}/pred"
@@ -84,8 +87,10 @@ python -u pred/call_api.py \
     --budget_ratio ${BUDGET_RATIO} \
     --estimate_ratio ${ESTIMATE_RATIO} \
     --synthetic_len ${MAX_SEQ_LENGTH} \
+    --cluster_select ${CLUSTER_SELECT} \
+    --cluster_reuse ${CLUSTER_REUSE} \
+    --eviction_policy ${EVICTION_POLICY} \
 
 python -u eval/evaluate.py \
     --data_dir ${PRED_DIR} \
     --benchmark ${BENCHMARK}
-

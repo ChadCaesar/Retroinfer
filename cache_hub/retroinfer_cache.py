@@ -716,3 +716,12 @@ class retroinfer_cache(KV_Cache):
                                 self.buffer_size, static_len)
 
         return attn_out.view(self.batch_size, 1, self.num_heads, self.head_dim)
+
+    def get_step_hit_rate(self):
+        """Return the cache hit rate for the most recent decode step, aggregated across all layers."""
+        total_hit = sum(self.hit_num_units[ldx].sum().item() for ldx in range(self.layer_num))
+        total_miss = sum(self.miss_num_units[ldx].sum().item() for ldx in range(self.layer_num))
+        total = total_hit + total_miss
+        if total == 0:
+            return 0.0, 0, 0
+        return total_hit / total, int(total_hit), int(total_miss)

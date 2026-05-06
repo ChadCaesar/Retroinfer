@@ -237,7 +237,10 @@ class QwenModel(LLM):
                 cache_unit_size = retroinfer_config["cache_unit_size"],
                 cache_cluster_num = retroinfer_config["cache_cluster_num"],
                 num_gpus = self.num_gpus,
-                model_size = int(re.search(r'(\d+)[B]', self.model_name).group(1))
+                model_size = int(re.search(r'(\d+)[B]', self.model_name).group(1)),
+                cluster_select = retroinfer_config["cluster_select"],
+                cluster_reuse = retroinfer_config["cluster_reuse"],
+                eviction_policy = retroinfer_config["eviction_policy"]
             )
         else:
             raise ValueError(f"Unsupported attention type: {self.attention_type}")

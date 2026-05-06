@@ -75,7 +75,7 @@ def seed_everything(seed):
 
 
 class HuggingFaceModel:
-    def __init__(self, model_name, max_len, max_new_len, attn_type, dtype, device, budget_ratio, estimate_ratio, synthetic_len) -> None:
+    def __init__(self, model_name, max_len, max_new_len, attn_type, dtype, device, budget_ratio, estimate_ratio, synthetic_len, cluster_select, cluster_reuse, eviction_policy) -> None:
         if 'Llama' in model_name:
             llm = LlamaModel(model_name,
                 max_length=max_len+max_new_len,
@@ -88,7 +88,7 @@ class HuggingFaceModel:
                 device_map=device)
         else:
             raise ValueError(f"Unsupported model: {model_name}")
-        
+
         self.llm = llm
         self.max_new_len = max_new_len
         self.attn_type = attn_type
@@ -97,17 +97,23 @@ class HuggingFaceModel:
         self.budget_ratio = budget_ratio
         self.estimate_ratio = estimate_ratio
         self.synthetic_len = synthetic_len
+        self.cluster_select = cluster_select
+        self.cluster_reuse = cluster_reuse
+        self.eviction_policy = eviction_policy
 
     def __call__(self, prompt: str, **kwargs) -> Dict[str, List[str]]:
         generated_text = get_pred(
             self.llm,
-            input_text=prompt, 
+            input_text=prompt,
             max_new_tokens=self.max_new_len,
             attn_type=self.attn_type,
             model_name=self.model_name,
             budget_ratio=self.budget_ratio,
             estimate_ratio=self.estimate_ratio,
-            synthetic_len=self.synthetic_len
+            synthetic_len=self.synthetic_len,
+            cluster_select=self.cluster_select,
+            cluster_reuse=self.cluster_reuse,
+            eviction_policy=self.eviction_policy
         )
 
         return {'text': [generated_text]}
@@ -118,7 +124,7 @@ class ServerAction(argparse.Action):
         namespace.server_type = values
 
 
-def get_llm(model_name, max_len, max_new_len, attn_type, dtype, device, budget_ratio, estimate_ratio, synthetic_len):
+def get_llm(model_name, max_len, max_new_len, attn_type, dtype, device, budget_ratio, estimate_ratio, synthetic_len, cluster_select, cluster_reuse, eviction_policy):
     if args.server_type == 'hf':
         llm = HuggingFaceModel(
             model_name=model_name,
@@ -130,7 +136,10 @@ def get_llm(model_name, max_len, max_new_len, attn_type, dtype, device, budget_r
             budget_ratio=budget_ratio,
             estimate_ratio=estimate_ratio,
             synthetic_len=synthetic_len,
-        ) 
+            cluster_select=cluster_select,
+            cluster_reuse=cluster_reuse,
+            eviction_policy=eviction_policy,
+        )
     else:
         raise RuntimeError(f'Unsupported server type {args.server_type}')
 
@@ -146,8 +155,11 @@ def get_pred(
     budget_ratio: float,
     estimate_ratio: float,
     synthetic_len: int,
+    cluster_select: str,
+    cluster_reuse: bool,
+    eviction_policy: str,
 ) -> str:
-    
+
     llm.tokenizer.pad_token = llm.tokenizer.eos_token
     llm.tokenizer.padding_side = "left"
     inputs = llm.tokenizer([input_text], return_tensors="pt", padding=True)
@@ -155,17 +167,22 @@ def get_pred(
     attention_masks = inputs.attention_mask
 
     attn_config = generate_config(
-        model_name, 
-        synthetic_len, 
+        model_name,
+        synthetic_len,
         attn_type,
         budget_ratio=budget_ratio,
         estimate_ratio=estimate_ratio,
     )
 
+    if attn_type == 'RetroInfer':
+        attn_config[attn_type]['cluster_select'] = cluster_select
+        attn_config[attn_type]['cluster_reuse'] = cluster_reuse
+        attn_config[attn_type]['eviction_policy'] = eviction_policy
+
     out = llm.generate(attention_type=attn_type,
         inputs_ids = input_ids.to(llm.layers[0].device),
         attention_masks = attention_masks.to(llm.layers[0].device),
-        max_new_length=max_new_tokens, 
+        max_new_length=max_new_tokens,
         attn_config=attn_config
     )
 
@@ -235,8 +252,9 @@ def main(args):
 
     # Load api
     dtype = torch.float16 if args.dtype == 'fp16' else torch.bfloat16
-    llm = get_llm(args.model_name, args.max_len, config['tokens_to_generate'], args.attn_type, dtype, args.device, 
-                  budget_ratio=args.budget_ratio, estimate_ratio=args.estimate_ratio, synthetic_len=args.synthetic_len,)
+    llm = get_llm(args.model_name, args.max_len, config['tokens_to_generate'], args.attn_type, dtype, args.device,
+                  budget_ratio=args.budget_ratio, estimate_ratio=args.estimate_ratio, synthetic_len=args.synthetic_len,
+                  cluster_select=args.cluster_select, cluster_reuse=args.cluster_reuse, eviction_policy=args.eviction_policy)
     
     threads = []
     outputs_parallel = [{} for _ in range(len(data))]
@@ -315,6 +333,10 @@ if __name__ == '__main__':
     parser.add_argument("--threads", type=int, default=4)
 
     parser.add_argument("--synthetic_len", type=int, required=True)
+
+    parser.add_argument("--cluster_select", type=str, default="top-p", choices=["top-k", "top-p"], help="How to search for top centroids")
+    parser.add_argument("--cluster_reuse", type=bool, default=True, help="Whether to reuse the last result of top centroids")
+    parser.add_argument("--eviction_policy", type=str, default="sclru", choices=["lru", "sclru", "arc"], help="Eviction policy in cache")
 
     parser = parse_attn_args(parser)
 

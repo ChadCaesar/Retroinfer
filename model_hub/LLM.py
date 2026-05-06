@@ -181,10 +181,16 @@ class LLM:
         print("Start decoding ...")
         decode_start = time.time()
 
+        cumulative_hit = 0
+        cumulative_miss = 0
         for _ in range(self.max_new_length-1):
             logits = self.decode_forward(inputs_ids=output_ids)
             output_ids = logits.argmax(dim=-1)
             outputs_ids.append(output_ids)
+            if hasattr(self.kv_cache, 'get_step_hit_rate'):
+                hr, hit, miss = self.kv_cache.get_step_hit_rate()
+                cumulative_hit += hit
+                cumulative_miss += miss
 
         decode_end = time.time()
         print(colored(
@@ -192,6 +198,12 @@ class LLM:
             f"Throughput: {round(self.batch_size * (self.max_new_length - 1) / (decode_end - decode_start), 2)} tokens/s\n",
             'green'
         ))
+        if hasattr(self.kv_cache, 'get_step_hit_rate') and (cumulative_hit + cumulative_miss) > 0:
+            hit_rate = cumulative_hit / (cumulative_hit + cumulative_miss)
+            print(colored(
+                f"Cache hit rate: {hit_rate:.4f} (hits={cumulative_hit}, misses={cumulative_miss})\n",
+                'yellow'
+            ))
         
         outputs_ids = torch.cat(outputs_ids, dim=-1).tolist()
         
