@@ -34,6 +34,9 @@ def parse_args(args=None):
     parser.add_argument('--task', type=str, required=True, help="task name. work when --e is false")
     parser.add_argument("--device", type=str, default="auto", help="Device")
     parser.add_argument("--num_examples", type=int, default=-1, help="num of example to evaluate. -1 for all.")
+    parser.add_argument("--cluster_select", type=str, default="top-p", choices=["top-k", "top-p"], help="How to search for top centroids")
+    parser.add_argument("--cluster_reuse", type=bool, default=True, help="Whether to reuse the last result of top centroids")
+    parser.add_argument("--eviction_policy", type=str, default="sclru", choices=["lru", "sclru", "arc"], help="Eviction policy in cache")
 
     parser = parse_attn_args(parser)
 
@@ -55,6 +58,11 @@ def get_pred(llm, data, max_new_tokens, prompt_format, model_name, out_path, arg
             budget_ratio=args.budget_ratio,
             estimate_ratio=args.estimate_ratio,
         )
+
+        if attn_type == 'RetroInfer':
+            attn_config[attn_type]['cluster_select'] = args.cluster_select
+            attn_config[attn_type]['cluster_reuse'] = args.cluster_reuse
+            attn_config[attn_type]['eviction_policy'] = args.eviction_policy
 
         out = llm.generate(
             attention_type=attn_type,
@@ -147,14 +155,14 @@ if __name__ == '__main__':
 
     for dataset in datasets:
         if args.e:
-            data = load_dataset('THUDM/LongBench', f"{dataset}_e", split='test')
+            data = load_dataset('json', data_files={'test': f"data/{dataset}_e.jsonl"}, split='test')
 
             prefix = f"results/pred_e/{model_name}/{attn_type}"
             if not os.path.exists(prefix):
                 os.makedirs(prefix)
             out_path = f"{prefix}/{dataset}.jsonl"
         else:
-            data = load_dataset('THUDM/LongBench', dataset, split='test')
+            data = load_dataset('json', data_files={'test': f"data/{dataset}.jsonl"}, split='test')
 
             prefix = f"results/pred/{model_name}/{attn_type}"
             if not os.path.exists(prefix):

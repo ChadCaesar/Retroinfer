@@ -403,5 +403,4 @@ build/
 dist/
 library/cutlass
 benchmark/LongBench/results/
-benchmark/ruler/data/synthetic/json/*.json
 benchmark/ruler/ruler_eval_result/
