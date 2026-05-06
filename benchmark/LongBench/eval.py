@@ -47,7 +47,7 @@ def parse_args(args=None):
                         choices=["Full_Flash_Attn", "RetroInfer"],                          \
                         help="Attention method")
     parser.add_argument("--cluster_select", type=str, default="top-p", choices=["top-k", "top-p"], help="How to search for top centroids")
-    parser.add_argument("--cluster_reuse", type=bool, default=True, help="Whether to reuse the last result of top centroids")
+    parser.add_argument("--cluster_reuse", type=lambda x: x.lower() in ('true', '1', 'yes'), default=True, help="Whether to reuse the last result of top centroids (True/False)")
     parser.add_argument("--eviction_policy", type=str, default="sclru", choices=["lru", "sclru", "arc"], help="Eviction policy in cache")
     parser.add_argument("--top_p", type=float, default=0.4, help="Top-p threshold for cluster selection")
     parser.add_argument('--e', action='store_true', help="Evaluate on LongBench-E")
@@ -88,14 +88,15 @@ if __name__ == '__main__':
     attn_type = args.attn_type
     model_name = args.model # not hf model path
 
-    model2path = json.load(open("config/model2path.json", "r"))
+    evaldir = os.path.dirname(os.path.abspath(__file__))
+    model2path = json.load(open(os.path.join(evaldir, "config", "model2path.json"), "r"))
     model_path = model2path[model_name]
 
     config_suffix = f"{args.cluster_select}_{args.cluster_reuse}_{args.eviction_policy}_{args.top_p}"
     if args.e:
-        path = f"results/pred_e/{args.model}/{attn_type}_{config_suffix}/"
+        path = os.path.join(evaldir, f"results/pred_e/{args.model}/{attn_type}_{config_suffix}/")
     else:
-        path = f"results/pred/{args.model}/{attn_type}_{config_suffix}/"
+        path = os.path.join(evaldir, f"results/pred/{args.model}/{attn_type}_{config_suffix}/")
     
     scores = dict()
     all_files = os.listdir(path)

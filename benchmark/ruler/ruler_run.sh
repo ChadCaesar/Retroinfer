@@ -14,6 +14,8 @@
 # limitations under the License.
 
 
+cd "$(dirname "$0")"
+
 if [ $# -ne 12 ]; then
     echo "Usage: $0 <model_name> $1 <benchmark_name> $2 <attn_type> $3 <context length> $4 <task> $5 <dtype> $6 <budget_ratio> $7 <estimate_ratio> $8 <cluster_select> $9 <cluster_reuse> ${10} <eviction_policy> ${11} <top_p>"
     exit 1

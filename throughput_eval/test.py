@@ -34,7 +34,7 @@ def parse_args():
     parser.add_argument("--task_name", type=str, default="multivalue", choices=["NIAH", "fwe", "vt", "qa1"],                \
                         help="Test task name")
     parser.add_argument("--cluster_select", type=str, default="top-p", choices=["top-k", "top-p"], help="How to search for top centroids")
-    parser.add_argument("--cluster_reuse", type=bool, default=True, help="Whether to reuse the last result of top centroids")
+    parser.add_argument("--cluster_reuse", type=lambda x: x.lower() in ('true', '1', 'yes'), default=True, help="Whether to reuse the last result of top centroids (True/False)")
     parser.add_argument("--eviction_policy", type=str, default="sclru", choices=["lru", "sclru", "arc"], help="Eviction policy in cache")
     parser.add_argument("--top_p", type=float, default=0.4, help="Top-p threshold for cluster selection (only used when cluster_select=top-p)")
     args = parser.parse_args()

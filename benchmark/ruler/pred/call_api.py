@@ -368,7 +368,6 @@ if __name__ == '__main__':
 
     parser.add_argument("--temperature", type=float, default=1.0)
     parser.add_argument("--top_k", type=int, default=32)
-    parser.add_argument("--top_p", type=float, default=1.0)
     parser.add_argument("--random_seed", type=int, default=0)
     parser.add_argument("--sliding_window_size", type=int)
     parser.add_argument("--threads", type=int, default=4)
@@ -376,7 +375,7 @@ if __name__ == '__main__':
     parser.add_argument("--synthetic_len", type=int, required=True)
 
     parser.add_argument("--cluster_select", type=str, default="top-p", choices=["top-k", "top-p"], help="How to search for top centroids")
-    parser.add_argument("--cluster_reuse", type=bool, default=True, help="Whether to reuse the last result of top centroids")
+    parser.add_argument("--cluster_reuse", type=lambda x: x.lower() in ('true', '1', 'yes'), default=True, help="Whether to reuse the last result of top centroids (True/False)")
     parser.add_argument("--eviction_policy", type=str, default="sclru", choices=["lru", "sclru", "arc"], help="Eviction policy in cache")
     parser.add_argument("--top_p", type=float, default=0.4, help="Top-p threshold for cluster selection (only used when cluster_select=top-p)")
     parser.add_argument("--cooldown", type=int, default=0, help="Cooldown seconds between each prefill+decode run (use with --num_threads 1)")

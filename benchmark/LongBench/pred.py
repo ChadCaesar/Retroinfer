@@ -56,7 +56,7 @@ def parse_args(args=None):
     parser.add_argument("--device", type=str, default="auto", help="Device")
     parser.add_argument("--num_examples", type=int, default=-1, help="num of example to evaluate. -1 for all.")
     parser.add_argument("--cluster_select", type=str, default="top-p", choices=["top-k", "top-p"], help="How to search for top centroids")
-    parser.add_argument("--cluster_reuse", type=bool, default=True, help="Whether to reuse the last result of top centroids")
+    parser.add_argument("--cluster_reuse", type=lambda x: x.lower() in ('true', '1', 'yes'), default=True, help="Whether to reuse the last result of top centroids (True/False)")
     parser.add_argument("--eviction_policy", type=str, default="sclru", choices=["lru", "sclru", "arc"], help="Eviction policy in cache")
     parser.add_argument("--top_p", type=float, default=0.4, help="Top-p threshold for cluster selection (only used when cluster_select=top-p)")
     parser.add_argument("--cooldown", type=int, default=0, help="Cooldown seconds between each prefill+decode run to prevent GPU overheating")
@@ -182,18 +182,21 @@ if __name__ == '__main__':
     if not os.path.exists("results/pred_e"):
         os.makedirs("results/pred_e")
 
+    config_suffix = f"{args.cluster_select}_{args.cluster_reuse}_{args.eviction_policy}_{args.top_p}"
+    attn_dir = f"{attn_type}_{config_suffix}"
+
     for dataset in datasets:
         if args.e:
             data = load_dataset('json', data_files={'test': f"data/{dataset}_e.jsonl"}, split='test')
 
-            prefix = f"results/pred_e/{model_name}/{attn_type}"
+            prefix = f"results/pred_e/{model_name}/{attn_dir}"
             if not os.path.exists(prefix):
                 os.makedirs(prefix)
             out_path = f"{prefix}/{dataset}.jsonl"
         else:
             data = load_dataset('json', data_files={'test': f"data/{dataset}.jsonl"}, split='test')
 
-            prefix = f"results/pred/{model_name}/{attn_type}"
+            prefix = f"results/pred/{model_name}/{attn_dir}"
             if not os.path.exists(prefix):
                 os.makedirs(prefix)
             out_path = f"{prefix}/{dataset}.jsonl"

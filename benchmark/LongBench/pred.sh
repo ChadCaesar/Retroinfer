@@ -1,5 +1,7 @@
 # !/bin/bash
 
+cd "$(dirname "$0")"
+
 if [ $# -ne 10 ]; then
     echo "Usage: $0 <model_name> $1 <task_name> $2 <attn_type> $3 <dtype> $4 <budget_ratio> $5 <estimate_ratio> $6 <cluster_select> $7 <cluster_reuse> $8 <eviction_policy> $9 <top_p>"
     exit 1
