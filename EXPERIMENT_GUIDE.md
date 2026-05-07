@@ -50,7 +50,7 @@ python simple_test.py \
 
 ## 2. 实验脚本
 
-所有实验在 `benchmark/` 下一键运行。每次 prefill+decode 之间默认冷却 5 秒，超过 80°C 自动等待降温。
+所有实验在 `benchmark/` 下一键运行。
 
 | 脚本 | 实验 | 耗时 |
 |------|------|------|
@@ -64,8 +64,7 @@ python simple_test.py \
 
 | 变量 | 默认值 | 说明 |
 |------|--------|------|
-| `SAMPLE_COOLDOWN` | `5` | 样本间冷却秒数 |
-| `GPU_TEMP_LIMIT` | `80` | GPU 温度上限 (°C) |
+| `GPU_TEMP_LIMIT` | `80` | GPU 温度上限 (°C)，超过则等待降温 |
 | `MODEL_SHORT` | `llama-3-8b-1048k` | LongBench 短名称 |
 | `MODEL_PATH` | `gradientai/Llama-3-8B-Instruct-Gradient-1048k` | RULER 路径名 |
 | `BUDGET_RATIO` | `0.018` | 检索预算 |
@@ -78,8 +77,8 @@ python simple_test.py \
 ### 自定义运行
 
 ```bash
-# 调长冷却
-SAMPLE_COOLDOWN=60 bash benchmark/run_e1_eviction.sh
+# 降低温度阈值
+GPU_TEMP_LIMIT=70 bash benchmark/run_e1_eviction.sh
 
 # 只跑 LongBench
 LONG_ONLY=1 bash benchmark/run_e1_eviction.sh

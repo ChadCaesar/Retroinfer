@@ -13,8 +13,7 @@ ESTIMATE_RATIO="${ESTIMATE_RATIO:-0.25}"
 TOP_P="${TOP_P:-0.4}"
 RULER_CONTEXT="${RULER_CONTEXT:-131072}"
 GPU_TEMP_LIMIT="${GPU_TEMP_LIMIT:-80}"              # wait until temp drops below this
-SAMPLE_COOLDOWN="${SAMPLE_COOLDOWN:-5}"             # cooldown between individual prefill+decode samples (main mechanism)
-export SAMPLE_COOLDOWN GPU_TEMP_LIMIT               # pass to pred.sh / ruler_run.sh
+export GPU_TEMP_LIMIT                              # pass to pred.sh / ruler_run.sh
 
 # Workspace roots
 BENCHMARK_DIR="$(cd "$(dirname "$0")" && pwd)"

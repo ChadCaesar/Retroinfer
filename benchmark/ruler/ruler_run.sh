@@ -34,7 +34,6 @@ CLUSTER_SELECT=${9}
 CLUSTER_REUSE=${10}
 EVICTION_POLICY=${11}
 TOP_P=${12}
-SAMPLE_COOLDOWN=${SAMPLE_COOLDOWN:-0}
 GPU_TEMP_LIMIT=${GPU_TEMP_LIMIT:-80}
 
 # Model and Tokenizer
@@ -96,7 +95,6 @@ python -u pred/call_api.py \
     --cluster_reuse ${CLUSTER_REUSE} \
     --eviction_policy ${EVICTION_POLICY} \
     --top_p ${TOP_P} \
-    --cooldown ${SAMPLE_COOLDOWN} \
     --gpu_temp_limit ${GPU_TEMP_LIMIT} \
 
 python -u eval/evaluate.py \

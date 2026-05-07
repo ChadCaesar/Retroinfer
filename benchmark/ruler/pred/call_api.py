@@ -150,34 +150,24 @@ def get_llm(model_name, max_len, max_new_len, attn_type, dtype, device, budget_r
     return llm
 
 
-# Module-level globals set from CLI args, used by get_pred() for cooldown
-_COOLDOWN_SECONDS = 0
 _GPU_TEMP_LIMIT = 80
-_COOLDOWN_LOCK = threading.Lock()
 
 
 def _cool_down():
-    """Sleep for cooldown seconds, then optionally wait for GPU temperature to drop."""
-    if _COOLDOWN_SECONDS <= 0:
-        return
-    with _COOLDOWN_LOCK:
-        time.sleep(_COOLDOWN_SECONDS)
-        try:
+    """Loop until GPU temperature drops below _GPU_TEMP_LIMIT."""
+    try:
+        while True:
             temps = subprocess.check_output(
                 ['nvidia-smi', '--query-gpu=temperature.gpu', '--format=csv,noheader'],
                 text=True
             ).strip().split('\n')
-            max_temp = max(int(t) for t in temps if t.strip())
-            while max_temp >= _GPU_TEMP_LIMIT:
-                print(f"GPU temp {max_temp}C >= {_GPU_TEMP_LIMIT}C, waiting 30s...")
-                time.sleep(30)
-                temps = subprocess.check_output(
-                    ['nvidia-smi', '--query-gpu=temperature.gpu', '--format=csv,noheader'],
-                    text=True
-                ).strip().split('\n')
-                max_temp = max(int(t) for t in temps if t.strip())
-        except Exception:
-            pass
+            current = max(int(t) for t in temps if t.strip())
+            if current < _GPU_TEMP_LIMIT:
+                break
+            print(f"GPU temp {current}C >= {_GPU_TEMP_LIMIT}C, cooling 10s...")
+            time.sleep(10)
+    except Exception:
+        pass  # nvidia-smi not available, skip temp check
 
 
 def get_pred(
@@ -250,8 +240,7 @@ def get_output(llm, outputs_parallel, idx, index, input, outputs, others, trunca
 
 
 def main(args):
-    global _COOLDOWN_SECONDS, _GPU_TEMP_LIMIT
-    _COOLDOWN_SECONDS = args.cooldown
+    global _GPU_TEMP_LIMIT
     _GPU_TEMP_LIMIT = args.gpu_temp_limit
 
     start_time = time.time()
@@ -378,8 +367,7 @@ if __name__ == '__main__':
     parser.add_argument("--cluster_reuse", type=lambda x: x.lower() in ('true', '1', 'yes'), default=True, help="Whether to reuse the last result of top centroids (True/False)")
     parser.add_argument("--eviction_policy", type=str, default="sclru", choices=["lru", "sclru", "arc"], help="Eviction policy in cache")
     parser.add_argument("--top_p", type=float, default=0.4, help="Top-p threshold for cluster selection (only used when cluster_select=top-p)")
-    parser.add_argument("--cooldown", type=int, default=0, help="Cooldown seconds between each prefill+decode run (use with --num_threads 1)")
-    parser.add_argument("--gpu_temp_limit", type=int, default=80, help="Max GPU temp before waiting")
+    parser.add_argument("--gpu_temp_limit", type=int, default=80, help="Max GPU temp before cooling wait")
 
     parser = parse_attn_args(parser)
 

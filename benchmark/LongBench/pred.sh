@@ -18,7 +18,6 @@ CLUSTER_SELECT=${7}
 CLUSTER_REUSE=${8}
 EVICTION_POLICY=${9}
 TOP_P=${10}
-SAMPLE_COOLDOWN=${SAMPLE_COOLDOWN:-0}
 GPU_TEMP_LIMIT=${GPU_TEMP_LIMIT:-80}
 
 RESULT_DIR="./results/pred/${MODEL}/${ATTN_TYPE}_${CLUSTER_SELECT}_${CLUSTER_REUSE}_${EVICTION_POLICY}_${TOP_P}"
@@ -41,6 +40,5 @@ python -u pred.py \
     --cluster_reuse ${CLUSTER_REUSE} \
     --eviction_policy ${EVICTION_POLICY} \
     --top_p ${TOP_P} \
-    --cooldown ${SAMPLE_COOLDOWN} \
     --gpu_temp_limit ${GPU_TEMP_LIMIT} \
     --num_examples ${NUM_EXAMPLES}

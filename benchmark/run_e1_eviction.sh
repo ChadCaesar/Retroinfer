@@ -6,7 +6,7 @@
 #   bash benchmark/run_e1_eviction.sh
 #
 # Configurable via env vars:
-#   SAMPLE_COOLDOWN=5     bash benchmark/run_e1_eviction.sh   # longer cooldown (default 5s)
+#   GPU_TEMP_LIMIT=70     bash benchmark/run_e1_eviction.sh   # lower temp threshold (default 80)
 #   LONG_ONLY=1           bash benchmark/run_e1_eviction.sh   # LongBench only
 #   RULER_ONLY=1          bash benchmark/run_e1_eviction.sh   # RULER only
 # ============================================================

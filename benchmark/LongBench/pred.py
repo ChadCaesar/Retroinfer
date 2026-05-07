@@ -25,21 +25,18 @@ dataset2maxlen = json.load(open("config/dataset2maxlen.json", "r"))
 
 
 def _wait_gpu_cool(max_temp_limit):
-    """Wait until GPU temperature drops below max_temp_limit."""
+    """Loop until GPU temperature drops below max_temp_limit."""
     try:
-        temps = subprocess.check_output(
-            ['nvidia-smi', '--query-gpu=temperature.gpu', '--format=csv,noheader'],
-            text=True
-        ).strip().split('\n')
-        current_max = max(int(t) for t in temps if t.strip())
-        while current_max >= max_temp_limit:
-            print(f"GPU temp {current_max}C >= {max_temp_limit}C, waiting 30s...")
-            time.sleep(30)
+        while True:
             temps = subprocess.check_output(
                 ['nvidia-smi', '--query-gpu=temperature.gpu', '--format=csv,noheader'],
                 text=True
             ).strip().split('\n')
-            current_max = max(int(t) for t in temps if t.strip())
+            current = max(int(t) for t in temps if t.strip())
+            if current < max_temp_limit:
+                break
+            print(f"GPU temp {current}C >= {max_temp_limit}C, cooling 10s...")
+            time.sleep(10)
     except Exception:
         pass  # nvidia-smi not available, skip temp check
 
@@ -59,8 +56,7 @@ def parse_args(args=None):
     parser.add_argument("--cluster_reuse", type=lambda x: x.lower() in ('true', '1', 'yes'), default=True, help="Whether to reuse the last result of top centroids (True/False)")
     parser.add_argument("--eviction_policy", type=str, default="sclru", choices=["lru", "sclru", "arc"], help="Eviction policy in cache")
     parser.add_argument("--top_p", type=float, default=0.4, help="Top-p threshold for cluster selection (only used when cluster_select=top-p)")
-    parser.add_argument("--cooldown", type=int, default=0, help="Cooldown seconds between each prefill+decode run to prevent GPU overheating")
-    parser.add_argument("--gpu_temp_limit", type=int, default=80, help="Max GPU temp before waiting during cooldown")
+    parser.add_argument("--gpu_temp_limit", type=int, default=80, help="Max GPU temp before cooling wait")
 
     parser = parse_attn_args(parser)
 
@@ -101,9 +97,7 @@ def get_pred(llm, data, max_new_tokens, prompt_format, model_name, out_path, arg
 
         torch.cuda.empty_cache()
 
-        if args.cooldown > 0:
-            time.sleep(args.cooldown)
-            _wait_gpu_cool(args.gpu_temp_limit)
+        _wait_gpu_cool(args.gpu_temp_limit)
 
         print("Chunked generation:", output[0][:50])
 
