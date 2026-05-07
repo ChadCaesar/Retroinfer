@@ -56,16 +56,15 @@ python simple_test.py \
 |------|------|------|
 | `run_e1_eviction.sh` | LRU vs SCLRU vs ARC | ~3h |
 | `run_e2_selection.sh` | top-k vs top-p | ~2.5h |
-| `run_e3_reuse.sh` | Reuse ON vs OFF | ~2.5h |
-| `run_e2b_topp.sh` | top_p ∈ {0.3,0.4,0.5,0.6} | ~1h |
-| `run_e3b_interact.sh` | 2×2×2 交互效应 | ~2h |
-| `run_e4_overall.sh` | Full_Flash_Attn vs RetroInfer | ~3h |
+| `run_e3_topp.sh` | top_p ∈ {0.3,0.4,0.5,0.6} | ~1h |
+| `run_e4_reuse.sh` | Reuse ON vs OFF | ~2.5h |
+| `run_e5_interact.sh` | 2×2×2 交互效应 | ~2h |
 
 ### 环境变量
 
 | 变量 | 默认值 | 说明 |
 |------|--------|------|
-| `SAMPLE_COOLDOWN` | `30` | 样本间冷却秒数 |
+| `SAMPLE_COOLDOWN` | `2` | 样本间冷却秒数 |
 | `GPU_TEMP_LIMIT` | `80` | GPU 温度上限 (°C) |
 | `MODEL_SHORT` | `llama-3-8b-1048k` | LongBench 短名称 |
 | `MODEL_PATH` | `gradientai/Llama-3-8B-Instruct-Gradient-1048k` | RULER 路径名 |
@@ -93,15 +92,14 @@ MODEL_SHORT=qwen2.5-7b MODEL_PATH=Qwen/Qwen2.5-7B-Instruct bash benchmark/run_e2
 
 ## 3. 运行顺序
 
-E1 → E2 → E3 → E3b → 确定最佳配置 → E4。E2b 可并行。
+E1 → E2 → E3 → E4 → E5。E3 可并行。
 
 ```bash
 bash benchmark/run_e1_eviction.sh
 bash benchmark/run_e2_selection.sh
-bash benchmark/run_e3_reuse.sh
-bash benchmark/run_e3b_interact.sh
-# 确定最佳配置后：
-bash benchmark/run_e4_overall.sh
+bash benchmark/run_e3_topp.sh
+bash benchmark/run_e4_reuse.sh
+bash benchmark/run_e5_interact.sh
 ```
 
 ---
@@ -150,16 +148,98 @@ python eval/evaluate.py \
 
 ## 5. 结果路径
 
+### LongBench
+
+| 内容 | 路径 | 示例 |
+|------|------|------|
+| 预测结果 | `results/pred/{MODEL}/{ATTN}_{select}_{reuse}_{policy}_{top_p}/{task}.jsonl` | `results/pred/llama-3-8b-1048k/RetroInfer_top-p_True_lru_0.4/musique.jsonl` |
+| 评测分数 | 同上目录下 `result.json` | `{"musique": 32.5, "gov_report": 18.2, ...}` |
+
+### RULER
+
+| 内容 | 路径 | 示例 |
+|------|------|------|
+| 生成数据 | `ruler_eval_result/{MODEL}/synthetic/131072/{ATTN}_{config}/data/{task}.jsonl` | `.../RetroInfer_top-p_True_lru_0.4/data/niah_multikey_1.jsonl` |
+| 预测结果 | 同上 `pred/{task}.jsonl` | `.../pred/niah_multikey_1.jsonl` |
+| 评测分数 | 同上 `pred/summary.csv` | CSV 表格 |
+
+### Throughput
+
+| 内容 | 路径 |
+|------|------|
+| 单次日志 | `throughput_eval/different_lengths_logs/{attn}_{len}_bsz{N}_{round}.log` |
+| 日志中包含 | `Throughput: XX tokens/s`、`Cache hit rate: X.XXXX`、`Reuse hit rate: X.XXXX` |
+
+### 实验运行日志
+
+| 内容 | 路径 |
+|------|------|
+| 全部运行记录 | `benchmark/exp_logs/{EXP}_YYYYMMDD_HHMMSS/_run.log` |
+| 单次命令输出 | `benchmark/exp_logs/{EXP}_YYYYMMDD_HHMMSS/{desc}.log` |
+
+### 聚合汇总
+
+```bash
+python benchmark/aggregate_results.py
 ```
-LongBench:  results/pred/{MODEL}/{ATTN_TYPE}_{select}_{reuse}_{policy}_{top_p}/{task}.jsonl
-RULER:      ruler_eval_result/{MODEL_PATH}/synthetic/131072/{ATTN_TYPE}_{select}_{reuse}_{policy}_{top_p}/pred/
-Throughput: throughput_eval/different_lengths_logs/{attn}_{len}_bsz{N}_{round}.log
-Exp log:    benchmark/exp_logs/{EXP}_YYYYMMDD_HHMMSS/
-```
+
+生成文件：
+| 文件 | 内容 |
+|------|------|
+| `benchmark/throughput_summary.csv` | 各配置吞吐量（含 mean/std） |
+| `benchmark/longbench_summary.csv` | LongBench 各任务得分 |
+| `benchmark/ruler_summary.csv` | RULER 各任务得分 |
 
 ---
 
-## 6. 可用模型
+## 6. 异常中断清理
+
+如果测试中途中断，残留的不完整文件可能导致下次运行跳过该任务。
+
+### 清理单任务（推荐）
+
+删掉中断任务对应的 `.jsonl` 文件。RULER 的测试数据文件无需重生成。
+
+**LongBench 示例**：
+```bash
+rm benchmark/LongBench/results/pred/llama-3-8b-1048k/RetroInfer_top-p_True_lru_0.4/musique.jsonl
+```
+
+**RULER 示例**：
+```bash
+rm benchmark/ruler/ruler_eval_result/gradientai/Llama-3-8B-Instruct-Gradient-1048k/synthetic/131072/RetroInfer_top-p_True_lru_0.4/pred/niah_multikey_1.jsonl
+```
+
+### 清理整次配置
+
+删掉整个配置目录（下次运行会重建）：
+```bash
+# LongBench
+rm -rf benchmark/LongBench/results/pred/llama-3-8b-1048k/RetroInfer_top-p_True_lru_0.4/
+
+# RULER（数据 + 预测 + 评测）
+rm -rf benchmark/ruler/ruler_eval_result/gradientai/Llama-3-8B-Instruct-Gradient-1048k/synthetic/131072/RetroInfer_top-p_True_lru_0.4/
+
+# Throughput
+rm throughput_eval/different_lengths_logs/retroinfer_*.log
+```
+
+### 清理评测缓存
+
+如果预测正确但评测分数异常，只需删掉评测结果重新评估：
+```bash
+# LongBench
+rm benchmark/LongBench/results/pred/llama-3-8b-1048k/RetroInfer_top-p_True_lru_0.4/result.json
+
+# RULER
+rm benchmark/ruler/ruler_eval_result/gradientai/Llama-3-8B-Instruct-Gradient-1048k/synthetic/131072/RetroInfer_top-p_True_lru_0.4/pred/summary.csv
+```
+
+然后重新运行评测命令（参见第 4 节）。
+
+---
+
+## 7. 可用模型
 
 | MODEL_PATH | 本地目录 |
 |-----------|---------|

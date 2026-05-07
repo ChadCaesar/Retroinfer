@@ -6,10 +6,9 @@
 |------|---------|---------|--------|---------|---------|
 | E1 | 缓存替换策略 | top-p + 复用 | LRU / SCLRU / ARC | 命中率 + 准确率 | `run_e1_eviction.sh` |
 | E2 | 聚类选择方式 | SCLRU + 复用 | top-k / top-p | 吞吐量 + 准确率 | `run_e2_selection.sh` |
-| E3 | 聚类复用 | SCLRU + top-p | True / False | 吞吐量 + 复用命中率 | `run_e3_reuse.sh` |
-| E2b | Top-p 阈值 | SCLRU + 复用 | top_p ∈ {0.3, 0.4, 0.5, 0.6} | 准确率 + 吞吐量 | `run_e2b_topp.sh` |
-| E3b | 参数交互 | — | 2×2×2 组合 | 准确率 + 命中率 | `run_e3b_interact.sh` |
-| E4 | 整体对比 | 最佳配置 | Full_Flash_Attn / RetroInfer | 准确率 + 吞吐量 | `run_e4_overall.sh` |
+| E3 | Top-p 阈值 | SCLRU + 复用 | top_p ∈ {0.3, 0.4, 0.5, 0.6} | 准确率 + 吞吐量 | `run_e3_topp.sh` |
+| E4 | 聚类复用 | SCLRU + top-p | True / False | 吞吐量 + 复用命中率 | `run_e4_reuse.sh` |
+| E5 | 参数交互 | — | 2×2×2 组合 | 准确率 + 命中率 | `run_e5_interact.sh` |
 
 **公共参数**: `budget_ratio=0.018`, `estimate_ratio=0.25`, `dtype=fp16`, `model=llama-3-8b-1048k`, `top_p=0.4`
 
@@ -45,9 +44,9 @@ ARC 维护 4 个链表自适应平衡 recency/frequency。当 GPU 缓存放不�
 
 ### 任务选择
 
-**LongBench 高敏感**（缓存压力大）：`hotpotqa`, `2wikimqa`, `musique`, `gov_report`, `qmsum`, `multi_news`, `passage_count`
+**LongBench 高敏感**（缓存压力大）：`musique`, `gov_report`, `passage_count`
 **LongBench 低敏感**（对照组）：`passage_retrieval_en`, `trec`, `triviaqa`
-**RULER 高敏感**（多针/多查询）：`niah_multikey_1`, `niah_multiquery`, `niah_multivalue`, `vt`
+**RULER 高敏感**（多针/多查询）：`niah_multikey_1`, `niah_multiquery`, `vt`
 **RULER 低敏感**（对照组）：`niah_single_1`
 
 ### 运行
@@ -80,8 +79,8 @@ Top-k 固定检索 `nprobe` 个聚类，Top-p 按累积注意力概率动态决�
 
 ### 任务选择
 
-**LongBench 注意力分散**：`gov_report`, `qmsum`, `multi_news`, `hotpotqa`, `2wikimqa`, `musique`, `passage_count`
-**LongBench 注意力集中**：`passage_retrieval_en`, `narrativeqa`, `qasper`, `trec`, `triviaqa`
+**LongBench 注意力分散**：`gov_report`, `musique`, `passage_count`
+**LongBench 注意力集中**：`passage_retrieval_en`, `narrativeqa`, `qasper`
 **RULER 注意力集中**：`niah_single_1`, `niah_single_2`, `niah_single_3`
 **RULER 注意力分散**：`niah_multikey_1`, `niah_multiquery`, `niah_multivalue`
 
@@ -103,29 +102,7 @@ bash benchmark/run_e2_selection.sh
 
 ---
 
-## E3: 聚类复用 (Reuse ON vs OFF)
-
-### 目的
-
-连续 decode 步中若 query 余弦相似度 > 0.95 则复用上一步聚类选择，跳过 `batch_gemm_softmax`。纯性能优化，核心指标是吞吐量和复用命中率。
-
-### 运行
-
-```bash
-bash benchmark/run_e3_reuse.sh
-```
-
-### 预期
-
-| 指标 | Reuse OFF | Reuse ON |
-|------|-----------|----------|
-| 吞吐量 (tokens/s) | 基线 | ↑ |
-| LongBench / RULER 准确率 | 基线 | ≈OFF |
-| 复用命中率 | — | > 80% |
-
----
-
-## E2b: Top-p 阈值敏感性
+## E3: Top-p 阈值敏感性
 
 ### 目的
 
@@ -139,7 +116,7 @@ RULER: `niah_single_1`（单针）, `niah_multikey_1`（多针）
 ### 运行
 
 ```bash
-bash benchmark/run_e2b_topp.sh
+bash benchmark/run_e3_topp.sh
 ```
 
 ### 预期
@@ -149,15 +126,37 @@ bash benchmark/run_e2b_topp.sh
 | 0.3 | ≈0.4 | 可能下降 | ↑ |
 | 0.4 | 基线 | 基线 | 基线 |
 | 0.5 | ≈0.4 | ≈0.4 | ↓ |
-| 0.6 | ≈0.4 | ≈0.4 | ↓↓ |
+| 0.6 | ≈0.4 | ≈0.4 | ↓↓
 
 ---
 
-## E3b: 参数交互效应
+## E4: 聚类复用 (Reuse ON vs OFF)
 
 ### 目的
 
-验证 E1-E3 独立消融假设：reuse 改访问模式→影响缓存替换；top-p 减少检索→减轻缓存压力。选取 2×2×2 抽样（LRU/ARC × top-k/top-p × Reuse ON/OFF）。
+连续 decode 步中若 query 余弦相似度 > 0.95 则复用上一步聚类选择，跳过 `batch_gemm_softmax`。纯性能优化，核心指标是吞吐量和复用命中率。
+
+### 运行
+
+```bash
+bash benchmark/run_e4_reuse.sh
+```
+
+### 预期
+
+| 指标 | Reuse OFF | Reuse ON |
+|------|-----------|----------|
+| 吞吐量 (tokens/s) | 基线 | ↑ |
+| LongBench / RULER 准确率 | 基线 | ≈OFF |
+| 复用命中率 | — | > 80% | |
+
+---
+
+## E5: 参数交互效应
+
+### 目的
+
+验证 E1-E4 独立消融假设：reuse 改访问模式→影响缓存替换；top-p 减少检索→减轻缓存压力。选取 2×2×2 抽样（LRU/ARC × top-k/top-p × Reuse ON/OFF）。
 
 ### 任务选择
 
@@ -167,7 +166,7 @@ RULER: `niah_multikey_1`（4针分散）, `niah_single_1`（单针集中）
 ### 运行
 
 ```bash
-bash benchmark/run_e3b_interact.sh
+bash benchmark/run_e5_interact.sh
 ```
 
 ### 预期
@@ -177,31 +176,6 @@ bash benchmark/run_e3b_interact.sh
 | LRU vs ARC 高压力任务 | ARC > LRU，top-k 下差距 > top-p 下差距 |
 | Reuse 交互 | ARC 下 Reuse 吞吐提升 < LRU 下 |
 | top-k vs top-p 单针 | top-p 吞吐 > top-k |
-
----
-
-## E4: 整体对比
-
-### 目的
-
-基于 E1-E3b 确定最佳配置（预期 `ARC + top-p + Reuse ON`），与 Full Flash Attention 全面对比。
-
-### 运行
-
-```bash
-bash benchmark/run_e4_overall.sh
-```
-
-LongBench 5 个任务 + RULER 13 个任务 + 吞吐量全长度测试。
-
-### 预期
-
-| 指标 | Full_Flash_Attn | RetroInfer |
-|------|----------------|-----------|
-| LongBench 准确率 | 上限 | 接近上限 |
-| RULER NIAH 准确率 | 上限 | 接近上限 |
-| 吞吐量 (tokens/s) | 基线 | ↑↑（长上下文优势更大） |
-| 最大上下文长度 | GPU 显存限制 | CPU 内存限制 |
 
 ---
 
@@ -222,14 +196,7 @@ LongBench 5 个任务 + RULER 13 个任务 + 吞吐量全长度测试。
 | top-k | | | | | | |
 | top-p | | | | | | |
 
-### E3: 聚类复用
-
-| 复用 | 吞吐量 60K/120K/240K/480K | 延迟 | LB acc | RULER acc | 复用命中率 |
-|------|--------------------------|------|--------|-----------|----------|
-| OFF | | | | | — |
-| ON | | | | | |
-
-### E2b: Top-p 阈值敏感性
+### E3: Top-p 阈值敏感性
 
 | top_p | gov_report acc | passage_retrieval acc | niah_s1 acc | niah_mk1 acc | 吞吐量 |
 |-------|---------------|----------------------|------------|-------------|--------|
@@ -238,7 +205,14 @@ LongBench 5 个任务 + RULER 13 个任务 + 吞吐量全长度测试。
 | 0.5 | | | | | |
 | 0.6 | | | | | |
 
-### E3b: 参数交互效应
+### E4: 聚类复用
+
+| 复用 | 吞吐量 60K/120K/240K/480K | 延迟 | LB acc | RULER acc | 复用命中率 |
+|------|--------------------------|------|--------|-----------|----------|
+| OFF | | | | | — |
+| ON | | | | | |
+
+### E5: 参数交互效应
 
 | ev × sel × reuse | musique acc | gov_report acc | niah_mk1 acc | niah_s1 acc | 命中率 | 吞吐量 |
 |------------------|------------|---------------|-------------|------------|------|--------|
@@ -251,9 +225,3 @@ LongBench 5 个任务 + RULER 13 个任务 + 吞吐量全长度测试。
 | ARC × top-p × ON | | | | | | |
 | ARC × top-p × OFF | | | | | | |
 
-### E4: 整体对比
-
-| 方法 | LB acc | RULER NIAH acc | RULER 其他 acc | 吞吐量 | 延迟 |
-|------|--------|---------------|---------------|--------|------|
-| Full_Flash_Attn | | | | | |
-| RetroInfer | | | | | |

@@ -23,10 +23,10 @@ FIXED_POLICY="sclru"
 log_msg "========== E2 LongBench =========="
 
 # Attention-diffuse tasks (注意力分散，预期 top-p ≈ top-k)
-DIFFUSE_TASKS=("gov_report" "qmsum" "multi_news" "hotpotqa" "2wikimqa" "musique" "passage_count")
+DIFFUSE_TASKS=("gov_report" "musique" "passage_count")
 
 # Attention-focused tasks (注意力集中，预期 top-p 吞吐 > top-k)
-FOCUSED_TASKS=("passage_retrieval_en" "narrativeqa" "qasper" "trec" "triviaqa")
+FOCUSED_TASKS=("passage_retrieval_en" "narrativeqa" "qasper")
 
 for mode in "${SELECT_MODES[@]}"; do
     log_msg "--- E2 LongBench: mode=${mode} ---"
@@ -69,7 +69,7 @@ done
 if [ "${SKIP_THROUGHPUT:-0}" != "1" ]; then
     log_msg "========== E2 Throughput =========="
     for mode in "${SELECT_MODES[@]}"; do
-        run_throughput "${mode}" "True" "${FIXED_POLICY}" "${mode}"
+        run_throughput "${mode}" "True" "${FIXED_POLICY}" "${TOP_P}" "${mode}"
     done
 fi
 

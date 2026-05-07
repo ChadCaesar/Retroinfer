@@ -14,7 +14,7 @@ TOP_P="${TOP_P:-0.4}"
 RULER_CONTEXT="${RULER_CONTEXT:-131072}"
 COOLDOWN_SECONDS="${COOLDOWN_SECONDS:-10}"            # cooldown between tasks (short — main cooldown is at sample level)
 GPU_TEMP_LIMIT="${GPU_TEMP_LIMIT:-80}"              # wait until temp drops below this
-SAMPLE_COOLDOWN="${SAMPLE_COOLDOWN:-30}"            # cooldown between individual prefill+decode samples (main mechanism)
+SAMPLE_COOLDOWN="${SAMPLE_COOLDOWN:-2}"             # cooldown between individual prefill+decode samples (main mechanism)
 export SAMPLE_COOLDOWN GPU_TEMP_LIMIT               # pass to pred.sh / ruler_run.sh
 
 # Workspace roots
@@ -111,7 +111,7 @@ run_ruler() {
     local desc="RULER_${task}_${attn_type}_${cluster_select}_${cluster_reuse}_${eviction_policy}_${top_p}"
     run_cmd "${desc}" \
         bash "${BENCHMARK_DIR}/ruler/ruler_run.sh" \
-            "${MODEL_PATH}" "synthetic" "${attn_type}" "${RULER_CONTEXT}" "${task}" \
+            "${MODEL_SHORT}" "synthetic" "${attn_type}" "${RULER_CONTEXT}" "${task}" \
             "${DTYPE}" "${BUDGET_RATIO}" "${ESTIMATE_RATIO}" \
             "${cluster_select}" "${cluster_reuse}" "${eviction_policy}" "${top_p}"
 }
@@ -141,7 +141,8 @@ run_throughput() {
     local cluster_select="$1"
     local cluster_reuse="$2"
     local eviction_policy="$3"
-    local desc="${4:-throughput}"
+    local top_p="${4:-${TOP_P}}"
+    local desc="${5:-throughput}"
 
     local tp_script="${PROJECT_DIR}/throughput_eval/run_different_lengths.sh"
     if [ ! -f "${tp_script}" ]; then
@@ -153,6 +154,7 @@ run_throughput() {
     sed -e "s/^CLUSTER_SELECT=.*/CLUSTER_SELECT=\"${cluster_select}\"/" \
         -e "s/^CLUSTER_REUSE=.*/CLUSTER_REUSE=\"${cluster_reuse}\"/" \
         -e "s/^EVICTION_POLICY=.*/EVICTION_POLICY=\"${eviction_policy}\"/" \
+        -e "s/^TOP_P=.*/TOP_P=\"${top_p}\"/" \
         "${tp_script}" > "${tmp_script}"
     chmod +x "${tmp_script}"
     run_cmd "throughput_${desc}" bash "${tmp_script}"

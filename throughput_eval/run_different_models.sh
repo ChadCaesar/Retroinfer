@@ -5,7 +5,8 @@ mkdir -p different_models_logs
 CLUSTER_SELECT="top-p"
 CLUSTER_REUSE="True"
 EVICTION_POLICY="sclru"
-RETROINFER_ARGS="--cluster_select ${CLUSTER_SELECT} --cluster_reuse ${CLUSTER_REUSE} --eviction_policy ${EVICTION_POLICY}"
+TOP_P="0.4"
+RETROINFER_ARGS="--cluster_select ${CLUSTER_SELECT} --cluster_reuse ${CLUSTER_REUSE} --eviction_policy ${EVICTION_POLICY} --top_p ${TOP_P}"
 
 export CUDA_VISIBLE_DEVICES=0
 ################################ Full Attention ################################

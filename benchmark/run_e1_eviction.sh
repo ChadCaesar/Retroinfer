@@ -24,7 +24,7 @@ if [ "${RULER_ONLY:-0}" != "1" ]; then
     log_msg "========== E1 LongBench =========="
 
     # High-sensitivity tasks (信息分散，缓存压力大)
-    HIGH_SENS_TASKS=("hotpotqa" "2wikimqa" "musique" "gov_report" "qmsum" "multi_news" "passage_count")
+    HIGH_SENS_TASKS=("musique" "gov_report" "passage_count")
 
     # Low-sensitivity tasks (对照组，注意力集中)
     LOW_SENS_TASKS=("passage_retrieval_en" "trec" "triviaqa")
@@ -55,7 +55,7 @@ if [ "${LONG_ONLY:-0}" != "1" ]; then
     log_msg "========== E1 RULER =========="
 
     # High-sensitivity (多针/多查询，缓存压力大)
-    HIGH_SENS_TASKS=("niah_multikey_1" "niah_multiquery" "niah_multivalue" "vt")
+    HIGH_SENS_TASKS=("niah_multikey_1" "niah_multiquery" "vt")
 
     # Low-sensitivity (单针对照组)
     LOW_SENS_TASKS=("niah_single_1")

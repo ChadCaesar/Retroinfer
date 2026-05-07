@@ -6,7 +6,8 @@ mkdir -p different_tasks_logs
 CLUSTER_SELECT="top-p"
 CLUSTER_REUSE="True"
 EVICTION_POLICY="sclru"
-RETROINFER_ARGS="--cluster_select ${CLUSTER_SELECT} --cluster_reuse ${CLUSTER_REUSE} --eviction_policy ${EVICTION_POLICY}"
+TOP_P="0.4"
+RETROINFER_ARGS="--cluster_select ${CLUSTER_SELECT} --cluster_reuse ${CLUSTER_REUSE} --eviction_policy ${EVICTION_POLICY} --top_p ${TOP_P}"
 
 ################################ Full Attention ################################
 for bsz in 1 4

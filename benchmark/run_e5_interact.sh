@@ -1,28 +1,28 @@
 #!/bin/bash
 # ============================================================
-# E3b: 参数交互效应验证 (eviction × cluster_select × cluster_reuse)
+# E5: 参数交互效应验证 (eviction × cluster_select × cluster_reuse)
 # ============================================================
 # 2×2×2 = 8 combinations sampled on 4 tasks
 # Usage:
-#   bash benchmark/run_e3b_interact.sh
+#   bash benchmark/run_e5_interact.sh
 # ============================================================
 
 set -euo pipefail
 source "$(dirname "$0")/common_exp.sh"
-setup_logging "E3b_interact"
+setup_logging "E5_interact"
 
 # Key design: test LRU vs ARC (extremes), top-k vs top-p, reuse ON vs OFF
 EVICTIONS=("lru" "arc")
 SELECTS=("top-k" "top-p")
 REUSES=("True" "False")
 
-log_msg "========== E3b: Interaction Effects =========="
+log_msg "========== E5: Interaction Effects =========="
 
 for ev in "${EVICTIONS[@]}"; do
     for sel in "${SELECTS[@]}"; do
         for re in "${REUSES[@]}"; do
             tp="${TOP_P}"
-            log_msg "--- E3b: ev=${ev} sel=${sel} reuse=${re} ---"
+            log_msg "--- E5: ev=${ev} sel=${sel} reuse=${re} ---"
 
             # LongBench
             run_longbench "musique"    "${sel}" "${re}" "${ev}" "RetroInfer" "${tp}"

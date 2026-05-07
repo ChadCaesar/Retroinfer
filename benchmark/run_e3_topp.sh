@@ -1,24 +1,24 @@
 #!/bin/bash
 # ============================================================
-# E2b: Top-p 阈值敏感性 (top_p ∈ {0.3, 0.4, 0.5, 0.6})
+# E3: Top-p 阈值敏感性 (top_p ∈ {0.3, 0.4, 0.5, 0.6})
 # ============================================================
 # Usage:
-#   bash benchmark/run_e2b_topp.sh
+#   bash benchmark/run_e3_topp.sh
 # ============================================================
 
 set -euo pipefail
 source "$(dirname "$0")/common_exp.sh"
-setup_logging "E2b_topp"
+setup_logging "E3_topp"
 
 TOP_P_VALUES=("0.3" "0.4" "0.5" "0.6")
 FIXED_SELECT="top-p"
 FIXED_REUSE="True"
 FIXED_POLICY="sclru"
 
-log_msg "========== E2b: Top-p sensitivity =========="
+log_msg "========== E3: Top-p sensitivity =========="
 
 for tp in "${TOP_P_VALUES[@]}"; do
-    log_msg "--- E2b: top_p=${tp} ---"
+    log_msg "--- E3: top_p=${tp} ---"
 
     # LongBench
     run_longbench "gov_report"          "${FIXED_SELECT}" "${FIXED_REUSE}" "${FIXED_POLICY}" "RetroInfer" "${tp}"

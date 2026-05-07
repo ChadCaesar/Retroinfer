@@ -19,7 +19,7 @@ TOP_P=${9}
 
 RESULT_DIR="./results/pred/${MODEL}/${ATTN_TYPE}_${CLUSTER_SELECT}_${CLUSTER_REUSE}_${EVICTION_POLICY}_${TOP_P}"
 
-tasks=(qasper repobench-p lcc gov_report triviaqa)
+tasks=(qasper gov_report triviaqa)
 
 for task in "${tasks[@]}"; do
     echo "Parameters: ${MODEL} ${task} ${ATTN_TYPE} ${DTYPE} ${BUDGET_RATIO} ${ESTIMATE_RATIO} ${CLUSTER_SELECT} ${CLUSTER_REUSE} ${EVICTION_POLICY} ${TOP_P}"
