@@ -6,9 +6,9 @@
 #   bash benchmark/run_e1_eviction.sh
 #
 # Configurable via env vars:
-#   COOLDOWN_SECONDS=60  bash benchmark/run_e1_eviction.sh   # shorter cooldown
-#   LONG_ONLY=1          bash benchmark/run_e1_eviction.sh   # LongBench only
-#   RULER_ONLY=1         bash benchmark/run_e1_eviction.sh   # RULER only
+#   SAMPLE_COOLDOWN=5     bash benchmark/run_e1_eviction.sh   # longer cooldown (default 5s)
+#   LONG_ONLY=1           bash benchmark/run_e1_eviction.sh   # LongBench only
+#   RULER_ONLY=1          bash benchmark/run_e1_eviction.sh   # RULER only
 # ============================================================
 
 set -euo pipefail

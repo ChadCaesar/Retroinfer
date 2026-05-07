@@ -12,9 +12,8 @@ BUDGET_RATIO="${BUDGET_RATIO:-0.018}"
 ESTIMATE_RATIO="${ESTIMATE_RATIO:-0.25}"
 TOP_P="${TOP_P:-0.4}"
 RULER_CONTEXT="${RULER_CONTEXT:-131072}"
-COOLDOWN_SECONDS="${COOLDOWN_SECONDS:-10}"            # cooldown between tasks (short — main cooldown is at sample level)
 GPU_TEMP_LIMIT="${GPU_TEMP_LIMIT:-80}"              # wait until temp drops below this
-SAMPLE_COOLDOWN="${SAMPLE_COOLDOWN:-2}"             # cooldown between individual prefill+decode samples (main mechanism)
+SAMPLE_COOLDOWN="${SAMPLE_COOLDOWN:-5}"             # cooldown between individual prefill+decode samples (main mechanism)
 export SAMPLE_COOLDOWN GPU_TEMP_LIMIT               # pass to pred.sh / ruler_run.sh
 
 # Workspace roots
@@ -38,16 +37,7 @@ log_msg() {
 }
 
 # ============================================================
-# Cooldown between tasks (sample-level cooldown is handled in Python)
-# ============================================================
-cool_down() {
-    log_msg "Task cooldown: ${COOLDOWN_SECONDS}s ..."
-    sleep "${COOLDOWN_SECONDS}"
-    log_msg "Task cooldown complete."
-}
-
-# ============================================================
-# Run a command with logging and cooldown
+# Run a command with logging
 # ============================================================
 run_cmd() {
     local desc="$1"

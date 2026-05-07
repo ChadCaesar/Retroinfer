@@ -157,10 +157,11 @@ _COOLDOWN_LOCK = threading.Lock()
 
 
 def _cool_down():
-    """Sleep and optionally wait for GPU temperature to drop."""
+    """Sleep for cooldown seconds, then optionally wait for GPU temperature to drop."""
     if _COOLDOWN_SECONDS <= 0:
         return
     with _COOLDOWN_LOCK:
+        time.sleep(_COOLDOWN_SECONDS)
         try:
             temps = subprocess.check_output(
                 ['nvidia-smi', '--query-gpu=temperature.gpu', '--format=csv,noheader'],
@@ -177,7 +178,6 @@ def _cool_down():
                 max_temp = max(int(t) for t in temps if t.strip())
         except Exception:
             pass
-        time.sleep(_COOLDOWN_SECONDS)
 
 
 def get_pred(
