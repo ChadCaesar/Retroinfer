@@ -100,7 +100,7 @@ if __name__ == "__main__":
 
     # load input data
     if data_path == "":
-        TEST_FILE = os.path.join(PROJECT_ROOT, "my_test_data.json")
+        TEST_FILE = os.path.join(PROJECT_ROOT, "simple_test_data.json")
     else:
         TEST_FILE = os.path.join(PROJECT_ROOT, f"{data_path}")
     print(colored(f"Loading test data from {TEST_FILE}", 'yellow'))

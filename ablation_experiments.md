@@ -6,9 +6,9 @@
 |------|---------|---------|--------|---------|---------|
 | E1 | 缓存替换策略 | top-p + 复用 | LRU / SCLRU / ARC | 命中率 + 准确率 | `run_e1_eviction.sh` |
 | E2 | 聚类选择方式 | SCLRU + 复用 | top-k / top-p | 吞吐量 + 准确率 | `run_e2_selection.sh` |
-| E3 | Top-p 阈值 | SCLRU + 复用 | top_p ∈ {0.3, 0.4, 0.5, 0.6} | 准确率 + 吞吐量 | `run_e3_topp.sh` |
-| E4 | 聚类复用 | SCLRU + top-p | True / False | 吞吐量 + 复用命中率 | `run_e4_reuse.sh` |
-| E5 | 参数交互 | — | 2×2×2 组合 | 准确率 + 命中率 | `run_e5_interact.sh` |
+| E3 | 聚类复用 | SCLRU + top-p | True / False | 吞吐量 + 复用命中率 + 准确率 | `run_e3_reuse.sh` |
+| E4 | Top-p 阈值 | SCLRU + 复用 | top_p ∈ {0.3, 0.4, 0.5, 0.6} | 准确率 + 吞吐量 | `run_e4_topp.sh` |
+| E5 | 参数交互 | — | 2×2×2 组合 | 准确率 + 命中率 + 吞吐量 | `run_e5_interact.sh` |
 
 **公共参数**: `budget_ratio=0.018`, `estimate_ratio=0.25`, `dtype=fp16`, `model=llama-3-8b-1048k`, `top_p=0.4`
 
@@ -46,7 +46,7 @@ ARC 维护 4 个链表自适应平衡 recency/frequency。当 GPU 缓存放不�
 
 **LongBench 高敏感**（缓存压力大）：`musique`, `gov_report`, `passage_count`
 **LongBench 低敏感**（对照组）：`passage_retrieval_en`, `trec`, `triviaqa`
-**RULER 高敏感**（多针/多查询）：`niah_multikey_1`, `niah_multiquery`, `vt`
+**RULER 高敏感**（多针）：`niah_multikey_1`
 **RULER 低敏感**（对照组）：`niah_single_1`
 
 ### 运行
@@ -81,8 +81,8 @@ Top-k 固定检索 `nprobe` 个聚类，Top-p 按累积注意力概率动态决�
 
 **LongBench 注意力分散**：`gov_report`, `musique`, `passage_count`
 **LongBench 注意力集中**：`passage_retrieval_en`, `narrativeqa`, `qasper`
-**RULER 注意力集中**：`niah_single_1`, `niah_single_2`, `niah_single_3`
-**RULER 注意力分散**：`niah_multikey_1`, `niah_multiquery`, `niah_multivalue`
+**RULER 注意力集中**：`niah_single_1`
+**RULER 注意力分散**：`niah_multikey_1`
 
 ### 运行
 
@@ -102,7 +102,29 @@ bash benchmark/run_e2_selection.sh
 
 ---
 
-## E3: Top-p 阈值敏感性
+## E3: 聚类复用 (Reuse ON vs OFF)
+
+### 目的
+
+连续 decode 步中若 query 余弦相似度 > 0.95 则复用上一步聚类选择，跳过 `batch_gemm_softmax`。纯性能优化，核心指标是吞吐量和复用命中率。
+
+### 运行
+
+```bash
+bash benchmark/run_e3_reuse.sh
+```
+
+### 预期
+
+| 指标 | Reuse OFF | Reuse ON |
+|------|-----------|----------|
+| 吞吐量 (tokens/s) | 基线 | ↑ |
+| LongBench / RULER 准确率 | 基线 | ≈OFF |
+| 复用命中率 | — | > 80% |
+
+---
+
+## E4: Top-p 阈值敏感性
 
 ### 目的
 
@@ -116,7 +138,7 @@ RULER: `niah_single_1`（单针）, `niah_multikey_1`（多针）
 ### 运行
 
 ```bash
-bash benchmark/run_e3_topp.sh
+bash benchmark/run_e4_topp.sh
 ```
 
 ### 预期
@@ -127,28 +149,6 @@ bash benchmark/run_e3_topp.sh
 | 0.4 | 基线 | 基线 | 基线 |
 | 0.5 | ≈0.4 | ≈0.4 | ↓ |
 | 0.6 | ≈0.4 | ≈0.4 | ↓↓
-
----
-
-## E4: 聚类复用 (Reuse ON vs OFF)
-
-### 目的
-
-连续 decode 步中若 query 余弦相似度 > 0.95 则复用上一步聚类选择，跳过 `batch_gemm_softmax`。纯性能优化，核心指标是吞吐量和复用命中率。
-
-### 运行
-
-```bash
-bash benchmark/run_e4_reuse.sh
-```
-
-### 预期
-
-| 指标 | Reuse OFF | Reuse ON |
-|------|-----------|----------|
-| 吞吐量 (tokens/s) | 基线 | ↑ |
-| LongBench / RULER 准确率 | 基线 | ≈OFF |
-| 复用命中率 | — | > 80% | |
 
 ---
 
@@ -183,11 +183,11 @@ bash benchmark/run_e5_interact.sh
 
 ### E1: 缓存替换策略
 
-| 策略 | 高敏感 LB acc | 低敏感 LB acc | 多针 RULER acc | 单针 RULER acc | 缓存命中率 | 吞吐量 |
-|------|-------------|-------------|---------------|---------------|----------|--------|
-| LRU | | | | | | |
-| SCLRU | | | | | | |
-| ARC | | | | | | |
+| 策略 | 高敏感 LB acc | 低敏感 LB acc | 多针 RULER acc | 单针 RULER acc | 缓存命中率 |
+|------|-------------|-------------|---------------|---------------|----------|
+| LRU | | | | | |
+| SCLRU | | | | | |
+| ARC | | | | | |
 
 ### E2: 聚类选择方式
 
@@ -196,7 +196,14 @@ bash benchmark/run_e5_interact.sh
 | top-k | | | | | | |
 | top-p | | | | | | |
 
-### E3: Top-p 阈值敏感性
+### E3: 聚类复用
+
+| 复用 | 吞吐量 60K/120K/240K/480K | 延迟 | LB acc | RULER acc | 复用命中率 |
+|------|--------------------------|------|--------|-----------|----------|
+| OFF | | | | | — |
+| ON | | | | | |
+
+### E4: Top-p 阈值敏感性
 
 | top_p | gov_report acc | passage_retrieval acc | niah_s1 acc | niah_mk1 acc | 吞吐量 |
 |-------|---------------|----------------------|------------|-------------|--------|
@@ -204,13 +211,6 @@ bash benchmark/run_e5_interact.sh
 | 0.4 | | | | | |
 | 0.5 | | | | | |
 | 0.6 | | | | | |
-
-### E4: 聚类复用
-
-| 复用 | 吞吐量 60K/120K/240K/480K | 延迟 | LB acc | RULER acc | 复用命中率 |
-|------|--------------------------|------|--------|-----------|----------|
-| OFF | | | | | — |
-| ON | | | | | |
 
 ### E5: 参数交互效应
 

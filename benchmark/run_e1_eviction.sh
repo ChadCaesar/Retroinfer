@@ -16,64 +16,34 @@ source "$(dirname "$0")/common_exp.sh"
 setup_logging "E1_eviction"
 
 POLICIES=("lru" "sclru" "arc")
+HIGH_SENS_LB=("musique" "gov_report" "passage_count")
+LOW_SENS_LB=("passage_retrieval_en" "trec" "triviaqa")
+HIGH_SENS_RULER=("niah_multikey_1")
+LOW_SENS_RULER=("niah_single_1")
 
-# ============================================================
-# LongBench tasks
-# ============================================================
-if [ "${RULER_ONLY:-0}" != "1" ]; then
-    log_msg "========== E1 LongBench =========="
+for policy in "${POLICIES[@]}"; do
+    log_msg "========== E1: policy=${policy} =========="
 
-    # High-sensitivity tasks (信息分散，缓存压力大)
-    HIGH_SENS_TASKS=("musique" "gov_report" "passage_count")
-
-    # Low-sensitivity tasks (对照组，注意力集中)
-    LOW_SENS_TASKS=("passage_retrieval_en" "trec" "triviaqa")
-
-    for policy in "${POLICIES[@]}"; do
-        log_msg "--- E1 LongBench: policy=${policy} ---"
-
-        for task in "${HIGH_SENS_TASKS[@]}"; do
+    # LongBench
+    if [ "${RULER_ONLY:-0}" != "1" ]; then
+        for task in "${HIGH_SENS_LB[@]}"; do
             run_longbench "${task}" "top-p" "True" "${policy}" "RetroInfer" "${TOP_P}"
         done
-
-        for task in "${LOW_SENS_TASKS[@]}"; do
+        for task in "${LOW_SENS_LB[@]}"; do
             run_longbench "${task}" "top-p" "True" "${policy}" "RetroInfer" "${TOP_P}"
         done
-    done
-
-    # Evaluation
-    log_msg "--- E1 LongBench Evaluation ---"
-    for policy in "${POLICIES[@]}"; do
         eval_longbench "top-p" "True" "${policy}" "RetroInfer" "${TOP_P}"
-    done
-fi
+    fi
 
-# ============================================================
-# RULER tasks
-# ============================================================
-if [ "${LONG_ONLY:-0}" != "1" ]; then
-    log_msg "========== E1 RULER =========="
-
-    # High-sensitivity (多针/多查询，缓存压力大)
-    HIGH_SENS_TASKS=("niah_multikey_1" "niah_multiquery" "vt")
-
-    # Low-sensitivity (单针对照组)
-    LOW_SENS_TASKS=("niah_single_1")
-
-    for policy in "${POLICIES[@]}"; do
-        log_msg "--- E1 RULER: policy=${policy} ---"
-
-        for task in "${HIGH_SENS_TASKS[@]}"; do
+    # RULER
+    if [ "${LONG_ONLY:-0}" != "1" ]; then
+        for task in "${HIGH_SENS_RULER[@]}"; do
             run_ruler "${task}" "top-p" "True" "${policy}" "RetroInfer" "${TOP_P}"
         done
-    done
-
-    # Low-sensitivity for all policies
-    for policy in "${POLICIES[@]}"; do
-        for task in "${LOW_SENS_TASKS[@]}"; do
+        for task in "${LOW_SENS_RULER[@]}"; do
             run_ruler "${task}" "top-p" "True" "${policy}" "RetroInfer" "${TOP_P}"
         done
-    done
-fi
+    fi
+done
 
 print_summary

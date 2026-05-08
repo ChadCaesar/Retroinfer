@@ -7,7 +7,7 @@ if [ $# -ne 10 ]; then
     exit 1
 fi
 
-NUM_EXAMPLES=-1
+NUM_EXAMPLES=50
 MODEL=${1}
 TASK=${2}
 ATTN_TYPE=${3}

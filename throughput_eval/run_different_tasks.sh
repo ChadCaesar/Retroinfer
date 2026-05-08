@@ -61,7 +61,7 @@ do
             --attn_type RetroInfer \
             --context_len 120000 \
             --task_name fwe \
-            ${RETROINFER_ARGS} --batch_size $bsz > different_tasks_logs/retroinfer_fwe_bsz${bsz}_${round}.log 2>&1
+            ${RETROINFER_ARGS} --batch_size $bsz > different_tasks_logs/retroinfer_${CLUSTER_SELECT}_${CLUSTER_REUSE}_${EVICTION_POLICY}_${TOP_P}_fwe_bsz${bsz}_${round}.log 2>&1
     done
 done
 
@@ -74,7 +74,7 @@ do
             --attn_type RetroInfer \
             --context_len 120000 \
             --task_name fwe \
-            ${RETROINFER_ARGS} --batch_size $bsz > different_tasks_logs/retroinfer_fwe_bsz${bsz}_${round}.log 2>&1
+            ${RETROINFER_ARGS} --batch_size $bsz > different_tasks_logs/retroinfer_${CLUSTER_SELECT}_${CLUSTER_REUSE}_${EVICTION_POLICY}_${TOP_P}_fwe_bsz${bsz}_${round}.log 2>&1
     done
 done
 
@@ -88,7 +88,7 @@ do
             --attn_type RetroInfer \
             --context_len 120000 \
             --task_name vt \
-            ${RETROINFER_ARGS} --batch_size $bsz > different_tasks_logs/retroinfer_vt_bsz${bsz}_${round}.log 2>&1
+            ${RETROINFER_ARGS} --batch_size $bsz > different_tasks_logs/retroinfer_${CLUSTER_SELECT}_${CLUSTER_REUSE}_${EVICTION_POLICY}_${TOP_P}_vt_bsz${bsz}_${round}.log 2>&1
     done
 done
 
@@ -101,7 +101,7 @@ do
             --attn_type RetroInfer \
             --context_len 120000 \
             --task_name vt \
-            ${RETROINFER_ARGS} --batch_size $bsz > different_tasks_logs/retroinfer_vt_bsz${bsz}_${round}.log 2>&1
+            ${RETROINFER_ARGS} --batch_size $bsz > different_tasks_logs/retroinfer_${CLUSTER_SELECT}_${CLUSTER_REUSE}_${EVICTION_POLICY}_${TOP_P}_vt_bsz${bsz}_${round}.log 2>&1
     done
 done
 
@@ -115,7 +115,7 @@ do
             --attn_type RetroInfer \
             --context_len 120000 \
             --task_name qa1 \
-            ${RETROINFER_ARGS} --batch_size $bsz > different_tasks_logs/retroinfer_qa1_bsz${bsz}_${round}.log 2>&1
+            ${RETROINFER_ARGS} --batch_size $bsz > different_tasks_logs/retroinfer_${CLUSTER_SELECT}_${CLUSTER_REUSE}_${EVICTION_POLICY}_${TOP_P}_qa1_bsz${bsz}_${round}.log 2>&1
     done
 done
 
@@ -128,7 +128,7 @@ do
             --attn_type RetroInfer \
             --context_len 120000 \
             --task_name qa1 \
-            ${RETROINFER_ARGS} --batch_size $bsz > different_tasks_logs/retroinfer_qa1_bsz${bsz}_${round}.log 2>&1
+            ${RETROINFER_ARGS} --batch_size $bsz > different_tasks_logs/retroinfer_${CLUSTER_SELECT}_${CLUSTER_REUSE}_${EVICTION_POLICY}_${TOP_P}_qa1_bsz${bsz}_${round}.log 2>&1
     done
 done
 

@@ -56,8 +56,8 @@ python simple_test.py \
 |------|------|------|
 | `run_e1_eviction.sh` | LRU vs SCLRU vs ARC | ~3h |
 | `run_e2_selection.sh` | top-k vs top-p | ~2.5h |
-| `run_e3_topp.sh` | top_p ∈ {0.3,0.4,0.5,0.6} | ~1h |
-| `run_e4_reuse.sh` | Reuse ON vs OFF | ~2.5h |
+| `run_e3_reuse.sh` | Reuse ON vs OFF | ~2.5h |
+| `run_e4_topp.sh` | top_p ∈ {0.3,0.4,0.5,0.6} | ~1h |
 | `run_e5_interact.sh` | 2×2×2 交互效应 | ~2h |
 
 ### 环境变量
@@ -91,13 +91,13 @@ MODEL_SHORT=qwen2.5-7b MODEL_PATH=Qwen/Qwen2.5-7B-Instruct bash benchmark/run_e2
 
 ## 3. 运行顺序
 
-E1 → E2 → E3 → E4 → E5。E3 可并行。
+E1 → E2 → E3 → E4 → E5。E4 可并行。
 
 ```bash
 bash benchmark/run_e1_eviction.sh
 bash benchmark/run_e2_selection.sh
-bash benchmark/run_e3_topp.sh
-bash benchmark/run_e4_reuse.sh
+bash benchmark/run_e3_reuse.sh
+bash benchmark/run_e4_topp.sh
 bash benchmark/run_e5_interact.sh
 ```
 
@@ -115,10 +115,12 @@ bash benchmark/run_e5_interact.sh
 python benchmark/aggregate_results.py
 ```
 
-生成三个文件：
-- `benchmark/throughput_summary.csv` — 吞吐量（含 mean/std）
-- `benchmark/longbench_summary.csv` — LongBench 各任务得分
-- `benchmark/ruler_summary.csv` — RULER 各任务得分
+生成实验级汇总表（对应 `ablation_experiments.md` 的结果模板）：
+- `benchmark/e1_eviction.csv` — E1 策略 × 准确率 × 命中率
+- `benchmark/e2_selection.csv` — E2 模式 × 准确率 × 吞吐量 × 延迟
+- `benchmark/e3_reuse.csv` — E3 复用 × 分长度吞吐量 × 准确率 × 复用命中率
+- `benchmark/e4_topp.csv` — E4 top_p × 准确率 × 吞吐量
+- `benchmark/e5_interact.csv` — E5 组合 × 准确率 × 命中率 × 吞吐量
 
 ### 手动评测
 
@@ -182,12 +184,14 @@ python eval/evaluate.py \
 python benchmark/aggregate_results.py
 ```
 
-生成文件：
+生成文件（对应 `ablation_experiments.md` 的结果汇总模板）：
 | 文件 | 内容 |
 |------|------|
-| `benchmark/throughput_summary.csv` | 各配置吞吐量（含 mean/std） |
-| `benchmark/longbench_summary.csv` | LongBench 各任务得分 |
-| `benchmark/ruler_summary.csv` | RULER 各任务得分 |
+| `benchmark/e1_eviction.csv` | E1 策略 × 高/低敏感 LB × 多/单针 RULER × 命中率 |
+| `benchmark/e2_selection.csv` | E2 模式 × 分散/集中 LB × 单/多针 RULER × 吞吐量 × 延迟 |
+| `benchmark/e3_reuse.csv` | E3 复用 × 分长度吞吐量 × 延迟 × LB/RULER acc × 复用命中率 |
+| `benchmark/e4_topp.csv` | E4 top_p × gov_report/passage_retrieval/单针/多针 acc × 吞吐量 |
+| `benchmark/e5_interact.csv` | E5 组合 × musique/gov_report/单针/多针 acc × 命中率 × 吞吐量 |
 
 ---
 

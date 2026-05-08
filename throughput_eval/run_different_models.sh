@@ -49,7 +49,7 @@ do
             --attn_type RetroInfer \
             --context_len 120000 \
             --task_name NIAH \
-            ${RETROINFER_ARGS} --batch_size $bsz > different_models_logs/retroinfer_llama31_bsz${bsz}_${round}.log 2>&1
+            ${RETROINFER_ARGS} --batch_size $bsz > different_models_logs/retroinfer_${CLUSTER_SELECT}_${CLUSTER_REUSE}_${EVICTION_POLICY}_${TOP_P}_llama31_bsz${bsz}_${round}.log 2>&1
     done
 done
 
@@ -62,7 +62,7 @@ do
             --attn_type RetroInfer \
             --context_len 120000 \
             --task_name NIAH \
-            ${RETROINFER_ARGS} --batch_size $bsz > different_models_logs/retroinfer_llama31_bsz${bsz}_${round}.log 2>&1
+            ${RETROINFER_ARGS} --batch_size $bsz > different_models_logs/retroinfer_${CLUSTER_SELECT}_${CLUSTER_REUSE}_${EVICTION_POLICY}_${TOP_P}_llama31_bsz${bsz}_${round}.log 2>&1
     done
 done
 
@@ -76,7 +76,7 @@ do
             --attn_type RetroInfer \
             --context_len 120000 \
             --task_name NIAH \
-            ${RETROINFER_ARGS} --batch_size $bsz > different_models_logs/retroinfer_qwen_bsz${bsz}_${round}.log 2>&1
+            ${RETROINFER_ARGS} --batch_size $bsz > different_models_logs/retroinfer_${CLUSTER_SELECT}_${CLUSTER_REUSE}_${EVICTION_POLICY}_${TOP_P}_qwen_bsz${bsz}_${round}.log 2>&1
     done
 done
 
@@ -89,7 +89,7 @@ do
             --attn_type RetroInfer \
             --context_len 120000 \
             --task_name NIAH \
-            ${RETROINFER_ARGS} --batch_size $bsz > different_models_logs/retroinfer_qwen_bsz${bsz}_${round}.log 2>&1
+            ${RETROINFER_ARGS} --batch_size $bsz > different_models_logs/retroinfer_${CLUSTER_SELECT}_${CLUSTER_REUSE}_${EVICTION_POLICY}_${TOP_P}_qwen_bsz${bsz}_${round}.log 2>&1
     done
 done
 
@@ -102,7 +102,7 @@ do
             --attn_type RetroInfer \
             --context_len 120000 \
             --task_name NIAH \
-            ${RETROINFER_ARGS} --batch_size $bsz > different_models_logs/retroinfer_qwen_bsz${bsz}_${round}.log 2>&1
+            ${RETROINFER_ARGS} --batch_size $bsz > different_models_logs/retroinfer_${CLUSTER_SELECT}_${CLUSTER_REUSE}_${EVICTION_POLICY}_${TOP_P}_qwen_bsz${bsz}_${round}.log 2>&1
     done
 done
 unset CUDA_VISIBLE_DEVICES
@@ -136,7 +136,7 @@ do
             --device auto \
             --context_len 120000 \
             --task_name NIAH \
-            ${RETROINFER_ARGS} --batch_size $bsz > different_models_logs/retroinfer_qwen72b_bsz${bsz}_${round}.log 2>&1
+            ${RETROINFER_ARGS} --batch_size $bsz > different_models_logs/retroinfer_${CLUSTER_SELECT}_${CLUSTER_REUSE}_${EVICTION_POLICY}_${TOP_P}_qwen72b_bsz${bsz}_${round}.log 2>&1
     done
 done
 
@@ -150,7 +150,7 @@ do
             --device auto \
             --context_len 120000 \
             --task_name NIAH \
-            ${RETROINFER_ARGS} --batch_size $bsz > different_models_logs/retroinfer_qwen72b_bsz${bsz}_${round}.log 2>&1
+            ${RETROINFER_ARGS} --batch_size $bsz > different_models_logs/retroinfer_${CLUSTER_SELECT}_${CLUSTER_REUSE}_${EVICTION_POLICY}_${TOP_P}_qwen72b_bsz${bsz}_${round}.log 2>&1
     done
 done
 
@@ -164,7 +164,7 @@ do
             --device auto \
             --context_len 120000 \
             --task_name NIAH \
-            ${RETROINFER_ARGS} --batch_size $bsz > different_models_logs/retroinfer_qwen72b_bsz${bsz}_${round}.log 2>&1
+            ${RETROINFER_ARGS} --batch_size $bsz > different_models_logs/retroinfer_${CLUSTER_SELECT}_${CLUSTER_REUSE}_${EVICTION_POLICY}_${TOP_P}_qwen72b_bsz${bsz}_${round}.log 2>&1
     done
 done
 unset CUDA_VISIBLE_DEVICES

@@ -11,7 +11,6 @@ set -euo pipefail
 source "$(dirname "$0")/common_exp.sh"
 setup_logging "E5_interact"
 
-# Key design: test LRU vs ARC (extremes), top-k vs top-p, reuse ON vs OFF
 EVICTIONS=("lru" "arc")
 SELECTS=("top-k" "top-p")
 REUSES=("True" "False")
@@ -21,19 +20,19 @@ log_msg "========== E5: Interaction Effects =========="
 for ev in "${EVICTIONS[@]}"; do
     for sel in "${SELECTS[@]}"; do
         for re in "${REUSES[@]}"; do
-            tp="${TOP_P}"
             log_msg "--- E5: ev=${ev} sel=${sel} reuse=${re} ---"
 
             # LongBench
-            run_longbench "musique"    "${sel}" "${re}" "${ev}" "RetroInfer" "${tp}"
-            run_longbench "gov_report" "${sel}" "${re}" "${ev}" "RetroInfer" "${tp}"
+            run_longbench "musique"    "${sel}" "${re}" "${ev}" "RetroInfer" "${TOP_P}"
+            run_longbench "gov_report" "${sel}" "${re}" "${ev}" "RetroInfer" "${TOP_P}"
+            eval_longbench "${sel}" "${re}" "${ev}" "RetroInfer" "${TOP_P}"
 
             # RULER
-            run_ruler "niah_multikey_1" "${sel}" "${re}" "${ev}" "RetroInfer" "${tp}"
-            run_ruler "niah_single_1"   "${sel}" "${re}" "${ev}" "RetroInfer" "${tp}"
+            run_ruler "niah_multikey_1" "${sel}" "${re}" "${ev}" "RetroInfer" "${TOP_P}"
+            run_ruler "niah_single_1"   "${sel}" "${re}" "${ev}" "RetroInfer" "${TOP_P}"
 
-            # Eval each combination individually
-            eval_longbench "${sel}" "${re}" "${ev}" "RetroInfer" "${tp}"
+            # Throughput
+            run_throughput "${sel}" "${re}" "${ev}" "${TOP_P}" "${ev}_${sel}_${re}"
         done
     done
 done
