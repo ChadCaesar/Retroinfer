@@ -46,11 +46,9 @@ if [ -z "${MODEL_NAME}" ]; then
     exit 1
 fi
 
-# Benchmark and Tasks
-source ruler_config_tasks.sh
+# Benchmark
 BENCHMARK=${2}
-declare -n TASKS=$BENCHMARK
-if [ -z "${TASKS}" ]; then
+if [ "${BENCHMARK}" != "synthetic" ]; then
     echo "Benchmark: ${BENCHMARK} is not supported"
     exit 1
 fi
