@@ -22,13 +22,13 @@ for reuse in "${REUSE_VALUES[@]}"; do
     log_msg "========== E3: reuse=${reuse} =========="
 
     # LongBench
-    run_longbench "gov_report" "${FIXED_SELECT}" "${reuse}" "${FIXED_POLICY}" "RetroInfer" "${TOP_P}"
-    run_longbench "musique"    "${FIXED_SELECT}" "${reuse}" "${FIXED_POLICY}" "RetroInfer" "${TOP_P}"
-    run_longbench "qasper"     "${FIXED_SELECT}" "${reuse}" "${FIXED_POLICY}" "RetroInfer" "${TOP_P}"
-    eval_longbench "${FIXED_SELECT}" "${reuse}" "${FIXED_POLICY}" "RetroInfer" "${TOP_P}"
+    run_longbench "gov_report" "${FIXED_SELECT}" "${reuse}" "${FIXED_POLICY}" "RetroInfer" "${TOP_P}" "${REUSE_THRESHOLD}"
+    run_longbench "musique"    "${FIXED_SELECT}" "${reuse}" "${FIXED_POLICY}" "RetroInfer" "${TOP_P}" "${REUSE_THRESHOLD}"
+    run_longbench "qasper"     "${FIXED_SELECT}" "${reuse}" "${FIXED_POLICY}" "RetroInfer" "${TOP_P}" "${REUSE_THRESHOLD}"
+    eval_longbench "${FIXED_SELECT}" "${reuse}" "${FIXED_POLICY}" "RetroInfer" "${TOP_P}" "${REUSE_THRESHOLD}"
 
     # RULER
-    run_ruler "niah_multikey_1" "${FIXED_SELECT}" "${reuse}" "${FIXED_POLICY}" "RetroInfer" "${TOP_P}"
+    run_ruler "niah_multikey_1" "${FIXED_SELECT}" "${reuse}" "${FIXED_POLICY}" "RetroInfer" "${TOP_P}" "${REUSE_THRESHOLD}"
 
     # Throughput
     if [ "${ACCURACY_ONLY:-0}" != "1" ] && [ "${SKIP_THROUGHPUT:-0}" != "1" ]; then

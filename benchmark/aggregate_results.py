@@ -21,19 +21,21 @@ PROJECT_ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))
 # Config parsing
 # ============================================================
 def parse_config(attn_dir_name):
-    """Parse 'RetroInfer_top-p_True_lru_0.4' into components."""
+    """Parse 'RetroInfer_top-p_True_lru_0.4_0.95' into components."""
     name = attn_dir_name.rstrip('/\\')
     parts = name.split('_')
     if len(parts) >= 5:
         try:
-            return {
+            config = {
                 'full': name,
                 'attn_type': parts[0],
                 'cluster_select': parts[1],
                 'cluster_reuse': parts[2],
                 'eviction_policy': parts[3],
                 'top_p': parts[4],
+                'reuse_threshold': parts[5] if len(parts) >= 6 else '0.95',
             }
+            return config
         except (ValueError, IndexError):
             pass
     return {'full': name, 'attn_type': name}
@@ -41,9 +43,10 @@ def parse_config(attn_dir_name):
 
 def parse_config_from_filename(filename):
     """Try to extract config from a filename with pattern *_top-p_True_lru_0.4*"""
-    m = re.search(r'(RetroInfer|retroinfer|Full_Flash_Attn)_(top-[kp])_(True|False)_(lru|sclru|arc)_([\d.]+)', filename)
+    m = re.search(r'(RetroInfer|retroinfer|Full_Flash_Attn)_(top-[kp])_(True|False)_(lru|sclru|arc)_([\d.]+)_?([\d.]*)', filename)
     if m:
-        return m.group(2), m.group(3), m.group(4), m.group(5)
+        rt = m.group(6) if m.group(6) else '0.95'
+        return m.group(2), m.group(3), m.group(4), m.group(5), rt
     return None
 
 
@@ -335,7 +338,7 @@ def build_e1(lb_rows, ruler_rows, runtime, tp_by_len):
     for policy in ['lru', 'sclru', 'arc']:
         lb = lb_idx.get(policy, {})
         ru = ru_idx.get(policy, {})
-        ck = ('top-p', 'True', policy, '0.4')
+        ck = ('top-p', 'True', policy, '0.4', '0.95')
         rt = runtime.get(ck, {})
 
         rows.append({
@@ -358,7 +361,7 @@ def build_e2(lb_rows, ruler_rows, runtime, tp_by_len):
     for mode in ['top-k', 'top-p']:
         lb = lb_idx.get(mode, {})
         ru = ru_idx.get(mode, {})
-        ck = (mode, 'True', 'sclru', '0.4')
+        ck = (mode, 'True', 'sclru', '0.4', '0.95')
         rt = runtime.get(ck, {})
 
         rows.append({
@@ -382,7 +385,7 @@ def build_e3(lb_rows, ruler_rows, runtime, tp_by_len):
     for reuse in ['False', 'True']:
         lb = lb_idx.get(reuse, {})
         ru = ru_idx.get(reuse, {})
-        ck = ('top-p', reuse, 'sclru', '0.4')
+        ck = ('top-p', reuse, 'sclru', '0.4', '0.95')
         rt = runtime.get(ck, {})
 
         row = {'cluster_reuse': reuse}
@@ -405,7 +408,7 @@ def build_e4(lb_rows, ruler_rows, runtime, tp_by_len):
     for tp_val in ['0.3', '0.4', '0.5', '0.6']:
         lb = lb_idx.get(tp_val, {})
         ru = ru_idx.get(tp_val, {})
-        ck = ('top-p', 'True', 'sclru', tp_val)
+        ck = ('top-p', 'True', 'sclru', tp_val, '0.95')
         rt = runtime.get(ck, {})
 
         rows.append({
@@ -420,42 +423,26 @@ def build_e4(lb_rows, ruler_rows, runtime, tp_by_len):
 
 
 def build_e5(lb_rows, ruler_rows, runtime, tp_by_len):
-    """E5: 参数交互效应."""
-    evictions = ['lru', 'arc']
-    selects = ['top-k', 'top-p']
-    reuses = ['True', 'False']
-
-    lb_by_config = {}
-    for r in lb_rows:
-        key = (r.get('eviction_policy', '?'), r.get('cluster_select', '?'), r.get('cluster_reuse', '?'))
-        lb_by_config[key] = r
-
-    ru_by_config = {}
-    for r in ruler_rows:
-        key = (r.get('eviction_policy', '?'), r.get('cluster_select', '?'), r.get('cluster_reuse', '?'))
-        ru_by_config[key] = r
+    """E5: 聚类复用阈值敏感性."""
+    lb_idx = _lb_scores_by_key(lb_rows, 'reuse_threshold')
+    ru_idx = _ruler_scores_by_key(ruler_rows, 'reuse_threshold')
 
     rows = []
-    for ev in evictions:
-        for sel in selects:
-            for reu_val in reuses:
-                key = (ev, sel, reu_val)
-                lb = lb_by_config.get(key, {})
-                ru = ru_by_config.get(key, {})
-                ck = (sel, reu_val, ev, '0.4')
-                rt = runtime.get(ck, {})
+    for rt_val in ['0.85', '0.9', '0.95', '0.99']:
+        lb = lb_idx.get(rt_val, {})
+        ru = ru_idx.get(rt_val, {})
+        ck = ('top-p', 'True', 'sclru', '0.4', rt_val)
+        rt = runtime.get(ck, {})
 
-                rows.append({
-                    'eviction_policy': ev,
-                    'cluster_select': sel,
-                    'cluster_reuse': reu_val,
-                    'musique_acc': lb.get('musique'),
-                    'gov_report_acc': lb.get('gov_report'),
-                    'niah_mk1_acc': ru.get('niah_multikey_1'),
-                    'niah_s1_acc': ru.get('niah_single_1'),
-                    'cache_hit_rate': rt.get('cache_hit_rate'),
-                    'throughput_tok_s': rt.get('tokens_per_sec'),
-                })
+        rows.append({
+            'reuse_threshold': rt_val,
+            'musique_acc': lb.get('musique'),
+            'gov_report_acc': lb.get('gov_report'),
+            'niah_mk1_acc': ru.get('niah_multikey_1'),
+            'niah_s1_acc': ru.get('niah_single_1'),
+            'reuse_hit_rate': rt.get('reuse_hit_rate'),
+            'throughput_tok_s': rt.get('tokens_per_sec'),
+        })
     return rows
 
 
@@ -522,7 +509,7 @@ def main():
     write_csv(build_e4(lb_rows, ruler_rows, runtime, tp_by_len),
               os.path.join(outdir, 'e4_topp.csv'))
     write_csv(build_e5(lb_rows, ruler_rows, runtime, tp_by_len),
-              os.path.join(outdir, 'e5_interact.csv'))
+              os.path.join(outdir, 'e5_reuse_threshold.csv'))
 
     print("\nDone. Summary files written to benchmark/e[1-5]_*.csv")
 

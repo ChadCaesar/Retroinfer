@@ -56,6 +56,7 @@ def parse_args(args=None):
     parser.add_argument("--cluster_reuse", type=lambda x: x.lower() in ('true', '1', 'yes'), default=True, help="Whether to reuse the last result of top centroids (True/False)")
     parser.add_argument("--eviction_policy", type=str, default="sclru", choices=["lru", "sclru", "arc"], help="Eviction policy in cache")
     parser.add_argument("--top_p", type=float, default=0.4, help="Top-p threshold for cluster selection (only used when cluster_select=top-p)")
+    parser.add_argument("--reuse_threshold", type=float, default=0.95, help="Cosine similarity threshold for cluster reuse")
     parser.add_argument("--gpu_temp_limit", type=int, default=80, help="Max GPU temp before cooling wait")
 
     parser = parse_attn_args(parser)
@@ -84,6 +85,7 @@ def get_pred(llm, data, max_new_tokens, prompt_format, model_name, out_path, arg
             attn_config[attn_type]['cluster_reuse'] = args.cluster_reuse
             attn_config[attn_type]['eviction_policy'] = args.eviction_policy
             attn_config[attn_type]['top_p'] = args.top_p
+            attn_config[attn_type]['reuse_threshold'] = args.reuse_threshold
 
         out = llm.generate(
             attention_type=attn_type,

@@ -25,19 +25,19 @@ for mode in "${SELECT_MODES[@]}"; do
 
     # LongBench
     for task in "${DIFFUSE_LB[@]}"; do
-        run_longbench "${task}" "${mode}" "True" "${FIXED_POLICY}" "RetroInfer" "${TOP_P}"
+        run_longbench "${task}" "${mode}" "True" "${FIXED_POLICY}" "RetroInfer" "${TOP_P}" "${REUSE_THRESHOLD}"
     done
     for task in "${FOCUSED_LB[@]}"; do
-        run_longbench "${task}" "${mode}" "True" "${FIXED_POLICY}" "RetroInfer" "${TOP_P}"
+        run_longbench "${task}" "${mode}" "True" "${FIXED_POLICY}" "RetroInfer" "${TOP_P}" "${REUSE_THRESHOLD}"
     done
-    eval_longbench "${mode}" "True" "${FIXED_POLICY}" "RetroInfer" "${TOP_P}"
+    eval_longbench "${mode}" "True" "${FIXED_POLICY}" "RetroInfer" "${TOP_P}" "${REUSE_THRESHOLD}"
 
     # RULER
     for task in "${SINGLE_RULER[@]}"; do
-        run_ruler "${task}" "${mode}" "True" "${FIXED_POLICY}" "RetroInfer" "${TOP_P}"
+        run_ruler "${task}" "${mode}" "True" "${FIXED_POLICY}" "RetroInfer" "${TOP_P}" "${REUSE_THRESHOLD}"
     done
     for task in "${MULTI_RULER[@]}"; do
-        run_ruler "${task}" "${mode}" "True" "${FIXED_POLICY}" "RetroInfer" "${TOP_P}"
+        run_ruler "${task}" "${mode}" "True" "${FIXED_POLICY}" "RetroInfer" "${TOP_P}" "${REUSE_THRESHOLD}"
     done
 
     # Throughput

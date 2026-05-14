@@ -44,7 +44,8 @@ class retroinfer_cache(KV_Cache):
         cluster_select: str,
         cluster_reuse: bool,
         eviction_policy: str,
-        top_p: float = 0.4
+        top_p: float = 0.4,
+        reuse_threshold: float = 0.95
     ) -> None:
         super().__init__(layer_num, batch_size, max_length, num_key_value_heads, num_heads, head_dim, dtype, layer_mapping, num_gpus, model_size)
         self.valid_start = valid_start
@@ -109,7 +110,7 @@ class retroinfer_cache(KV_Cache):
         self.prev_queries = [None] * self.layer_num
         self.prev_cI = [None] * self.layer_num
         self.cI_buffer = torch.empty((self.batch_groups, self.max_compute_cluster_num), dtype=torch.int64, device=self.layer_mapping[str(0)])
-        self.reuse_threshold = 0.95
+        self.reuse_threshold = reuse_threshold
         self.reuse_hits = 0
         self.reuse_total = 0
 

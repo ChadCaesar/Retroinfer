@@ -50,6 +50,7 @@ def parse_args(args=None):
     parser.add_argument("--cluster_reuse", type=lambda x: x.lower() in ('true', '1', 'yes'), default=True, help="Whether to reuse the last result of top centroids (True/False)")
     parser.add_argument("--eviction_policy", type=str, default="sclru", choices=["lru", "sclru", "arc"], help="Eviction policy in cache")
     parser.add_argument("--top_p", type=float, default=0.4, help="Top-p threshold for cluster selection")
+    parser.add_argument("--reuse_threshold", type=float, default=0.95, help="Cosine similarity threshold for cluster reuse")
     parser.add_argument('--e', action='store_true', help="Evaluate on LongBench-E")
     return parser.parse_args(args)
 
@@ -92,7 +93,7 @@ if __name__ == '__main__':
     model2path = json.load(open(os.path.join(evaldir, "config", "model2path.json"), "r"))
     model_path = model2path[model_name]
 
-    config_suffix = f"{args.cluster_select}_{args.cluster_reuse}_{args.eviction_policy}_{args.top_p}"
+    config_suffix = f"{args.cluster_select}_{args.cluster_reuse}_{args.eviction_policy}_{args.top_p}_{args.reuse_threshold}"
     if args.e:
         path = os.path.join(evaldir, f"results/pred_e/{args.model}/{attn_type}_{config_suffix}/")
     else:

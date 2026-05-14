@@ -7,7 +7,8 @@ CLUSTER_SELECT="top-p"
 CLUSTER_REUSE="True"
 EVICTION_POLICY="sclru"
 TOP_P="0.4"
-RETROINFER_ARGS="--cluster_select ${CLUSTER_SELECT} --cluster_reuse ${CLUSTER_REUSE} --eviction_policy ${EVICTION_POLICY} --top_p ${TOP_P}"
+REUSE_THRESHOLD="0.95"
+RETROINFER_ARGS="--cluster_select ${CLUSTER_SELECT} --cluster_reuse ${CLUSTER_REUSE} --eviction_policy ${EVICTION_POLICY} --top_p ${TOP_P} --reuse_threshold ${REUSE_THRESHOLD}"
 
 ################################ Full Attention ################################
 for bsz in 1 2 4 8

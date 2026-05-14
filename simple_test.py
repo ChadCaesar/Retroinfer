@@ -37,6 +37,7 @@ def parse_args():
     parser.add_argument("--cluster_reuse", type=lambda x: x.lower() in ('true', '1', 'yes'), default=True, help="Whether to reuse the last result of top centroids (True/False)")
     parser.add_argument("--eviction_policy", type=str, default="sclru", choices=["lru", "sclru", "arc"], help="Eviction policy in cache")
     parser.add_argument("--top_p", type=float, default=0.4, help="Top-p threshold for cluster selection (only used when cluster_select=top-p)")
+    parser.add_argument("--reuse_threshold", type=float, default=0.95, help="Cosine similarity threshold for cluster reuse")
     args = parser.parse_args()
     
     return args
@@ -144,6 +145,7 @@ if __name__ == "__main__":
         attn_config[attn_type]['cluster_reuse'] = args.cluster_reuse
         attn_config[attn_type]['eviction_policy'] = args.eviction_policy
         attn_config[attn_type]['top_p'] = args.top_p
+        attn_config[attn_type]['reuse_threshold'] = args.reuse_threshold
 
     llm = load_model(model_name, max_len, dtype, device)
     out = llm.generate(attention_type=attn_type,

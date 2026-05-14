@@ -8,7 +8,7 @@
 | E2 | 聚类选择方式 | SCLRU + 复用 | top-k / top-p | 吞吐量 + 准确率 | `run_e2_selection.sh` |
 | E3 | 聚类复用 | SCLRU + top-p | True / False | 吞吐量 + 复用命中率 + 准确率 | `run_e3_reuse.sh` |
 | E4 | Top-p 阈值 | SCLRU + 复用 | top_p ∈ {0.3, 0.4, 0.5, 0.6} | 准确率 + 吞吐量 | `run_e4_topp.sh` |
-| E5 | 参数交互 | — | 2×2×2 组合 | 准确率 + 命中率 + 吞吐量 | `run_e5_interact.sh` |
+| E5 | 复用阈值 | SCLRU + top-p + 复用 | threshold ∈ {0.85, 0.9, 0.95, 0.99} | 复用命中率 + 准确率 + 吞吐量 | `run_e5_reuse_threshold.sh` |
 
 **公共参数**: `budget_ratio=0.018`, `estimate_ratio=0.25`, `dtype=fp16`, `model=llama-3-8b-1048k`, `top_p=0.4`
 
@@ -152,11 +152,11 @@ bash benchmark/run_e4_topp.sh
 
 ---
 
-## E5: 参数交互效应
+## E5: 聚类复用阈值敏感性
 
 ### 目的
 
-验证 E1-E4 独立消融假设：reuse 改访问模式→影响缓存替换；top-p 减少检索→减轻缓存压力。选取 2×2×2 抽样（LRU/ARC × top-k/top-p × Reuse ON/OFF）。
+验证 `reuse_threshold ∈ {0.85, 0.9, 0.95, 0.99}` 的敏感性。阈值越低越容易触发复用（吞吐提升但可能准确率下降），阈值越高越保守（准确率高但复用少）。
 
 ### 任务选择
 
@@ -166,16 +166,17 @@ RULER: `niah_multikey_1`（4针分散）, `niah_single_1`（单针集中）
 ### 运行
 
 ```bash
-bash benchmark/run_e5_interact.sh
+bash benchmark/run_e5_reuse_threshold.sh
 ```
 
 ### 预期
 
-| 指标 | 预期 |
-|------|------|
-| LRU vs ARC 高压力任务 | ARC > LRU，top-k 下差距 > top-p 下差距 |
-| Reuse 交互 | ARC 下 Reuse 吞吐提升 < LRU 下 |
-| top-k vs top-p 单针 | top-p 吞吐 > top-k |
+| threshold | 复用命中率 | 准确率 | 吞吐量 |
+|-----------|----------|--------|--------|
+| 0.85 | ↑↑↑ | 可能下降 | ↑↑↑ |
+| 0.9 | ↑↑ | ≈0.95 | ↑↑ |
+| 0.95 | 基线 | 基线 | 基线 |
+| 0.99 | ↓ | ≈0.95 | ≈0.95 |
 
 ---
 
@@ -212,16 +213,12 @@ bash benchmark/run_e5_interact.sh
 | 0.5 | | | | | |
 | 0.6 | | | | | |
 
-### E5: 参数交互效应
+### E5: 聚类复用阈值敏感性
 
-| ev × sel × reuse | musique acc | gov_report acc | niah_mk1 acc | niah_s1 acc | 命中率 | 吞吐量 |
-|------------------|------------|---------------|-------------|------------|------|--------|
-| LRU × top-k × ON | | | | | | |
-| LRU × top-k × OFF | | | | | | |
-| LRU × top-p × ON | | | | | | |
-| LRU × top-p × OFF | | | | | | |
-| ARC × top-k × ON | | | | | | |
-| ARC × top-k × OFF | | | | | | |
-| ARC × top-p × ON | | | | | | |
-| ARC × top-p × OFF | | | | | | |
+| threshold | musique acc | gov_report acc | niah_mk1 acc | niah_s1 acc | 复用命中率 | 吞吐量 |
+|-----------|------------|---------------|-------------|------------|----------|--------|
+| 0.85 | | | | | | |
+| 0.9 | | | | | | |
+| 0.95 | | | | | | |
+| 0.99 | | | | | | |
 

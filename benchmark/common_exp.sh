@@ -13,6 +13,7 @@ ESTIMATE_RATIO="${ESTIMATE_RATIO:-0.25}"
 TOP_P="${TOP_P:-0.4}"
 RULER_CONTEXT="${RULER_CONTEXT:-131072}"
 GPU_TEMP_LIMIT="${GPU_TEMP_LIMIT:-80}"              # wait until temp drops below this
+REUSE_THRESHOLD="${REUSE_THRESHOLD:-0.95}"          # cosine similarity threshold for cluster reuse
 export GPU_TEMP_LIMIT                              # pass to pred.sh / ruler_run.sh
 
 # Workspace roots
@@ -77,13 +78,14 @@ run_longbench() {
     local eviction_policy="$4"
     local attn_type="${5:-RetroInfer}"
     local top_p="${6:-${TOP_P}}"
+    local reuse_threshold="${7:-${REUSE_THRESHOLD}}"
 
-    local desc="LB_${task}_${attn_type}_${cluster_select}_${cluster_reuse}_${eviction_policy}_${top_p}"
+    local desc="LB_${task}_${attn_type}_${cluster_select}_${cluster_reuse}_${eviction_policy}_${top_p}_${reuse_threshold}"
     run_cmd "${desc}" \
         bash "${BENCHMARK_DIR}/LongBench/pred.sh" \
             "${MODEL_SHORT}" "${task}" "${attn_type}" "${DTYPE}" \
             "${BUDGET_RATIO}" "${ESTIMATE_RATIO}" \
-            "${cluster_select}" "${cluster_reuse}" "${eviction_policy}" "${top_p}"
+            "${cluster_select}" "${cluster_reuse}" "${eviction_policy}" "${top_p}" "${reuse_threshold}"
 }
 
 # ============================================================
@@ -96,13 +98,14 @@ run_ruler() {
     local eviction_policy="$4"
     local attn_type="${5:-RetroInfer}"
     local top_p="${6:-${TOP_P}}"
+    local reuse_threshold="${7:-${REUSE_THRESHOLD}}"
 
-    local desc="RULER_${task}_${attn_type}_${cluster_select}_${cluster_reuse}_${eviction_policy}_${top_p}"
+    local desc="RULER_${task}_${attn_type}_${cluster_select}_${cluster_reuse}_${eviction_policy}_${top_p}_${reuse_threshold}"
     run_cmd "${desc}" \
         bash "${BENCHMARK_DIR}/ruler/ruler_run.sh" \
             "${MODEL_SHORT}" "synthetic" "${attn_type}" "${RULER_CONTEXT}" "${task}" \
             "${DTYPE}" "${BUDGET_RATIO}" "${ESTIMATE_RATIO}" \
-            "${cluster_select}" "${cluster_reuse}" "${eviction_policy}" "${top_p}"
+            "${cluster_select}" "${cluster_reuse}" "${eviction_policy}" "${top_p}" "${reuse_threshold}"
 }
 
 # ============================================================
@@ -114,13 +117,15 @@ eval_longbench() {
     local eviction_policy="$3"
     local attn_type="${4:-RetroInfer}"
     local top_p="${5:-${TOP_P}}"
+    local reuse_threshold="${6:-${REUSE_THRESHOLD}}"
 
-    local desc="eval_LB_${attn_type}_${cluster_select}_${cluster_reuse}_${eviction_policy}_${top_p}"
+    local desc="eval_LB_${attn_type}_${cluster_select}_${cluster_reuse}_${eviction_policy}_${top_p}_${reuse_threshold}"
     run_cmd "${desc}" \
         python -u "${BENCHMARK_DIR}/LongBench/eval.py" \
             --model "${MODEL_SHORT}" --attn_type "${attn_type}" \
             --cluster_select "${cluster_select}" --cluster_reuse "${cluster_reuse}" \
-            --eviction_policy "${eviction_policy}" --top_p "${top_p}"
+            --eviction_policy "${eviction_policy}" --top_p "${top_p}" \
+            --reuse_threshold "${reuse_threshold}"
 }
 
 # ============================================================
@@ -132,6 +137,7 @@ run_throughput() {
     local eviction_policy="$3"
     local top_p="${4:-${TOP_P}}"
     local desc="${5:-throughput}"
+    local reuse_threshold="${6:-${REUSE_THRESHOLD}}"
 
     local tp_script="${PROJECT_DIR}/throughput_eval/run_different_lengths.sh"
     if [ ! -f "${tp_script}" ]; then
@@ -144,6 +150,7 @@ run_throughput() {
         -e "s/^CLUSTER_REUSE=.*/CLUSTER_REUSE=\"${cluster_reuse}\"/" \
         -e "s/^EVICTION_POLICY=.*/EVICTION_POLICY=\"${eviction_policy}\"/" \
         -e "s/^TOP_P=.*/TOP_P=\"${top_p}\"/" \
+        -e "s/^REUSE_THRESHOLD=.*/REUSE_THRESHOLD=\"${reuse_threshold}\"/" \
         "${tp_script}" > "${tmp_script}"
     chmod +x "${tmp_script}"
     run_cmd "throughput_${desc}" bash "${tmp_script}"

@@ -27,21 +27,21 @@ for policy in "${POLICIES[@]}"; do
     # LongBench
     if [ "${RULER_ONLY:-0}" != "1" ]; then
         for task in "${HIGH_SENS_LB[@]}"; do
-            run_longbench "${task}" "top-p" "True" "${policy}" "RetroInfer" "${TOP_P}"
+            run_longbench "${task}" "top-p" "True" "${policy}" "RetroInfer" "${TOP_P}" "${REUSE_THRESHOLD}"
         done
         for task in "${LOW_SENS_LB[@]}"; do
-            run_longbench "${task}" "top-p" "True" "${policy}" "RetroInfer" "${TOP_P}"
+            run_longbench "${task}" "top-p" "True" "${policy}" "RetroInfer" "${TOP_P}" "${REUSE_THRESHOLD}"
         done
-        eval_longbench "top-p" "True" "${policy}" "RetroInfer" "${TOP_P}"
+        eval_longbench "top-p" "True" "${policy}" "RetroInfer" "${TOP_P}" "${REUSE_THRESHOLD}"
     fi
 
     # RULER
     if [ "${LONG_ONLY:-0}" != "1" ]; then
         for task in "${HIGH_SENS_RULER[@]}"; do
-            run_ruler "${task}" "top-p" "True" "${policy}" "RetroInfer" "${TOP_P}"
+            run_ruler "${task}" "top-p" "True" "${policy}" "RetroInfer" "${TOP_P}" "${REUSE_THRESHOLD}"
         done
         for task in "${LOW_SENS_RULER[@]}"; do
-            run_ruler "${task}" "top-p" "True" "${policy}" "RetroInfer" "${TOP_P}"
+            run_ruler "${task}" "top-p" "True" "${policy}" "RetroInfer" "${TOP_P}" "${REUSE_THRESHOLD}"
         done
     fi
 done

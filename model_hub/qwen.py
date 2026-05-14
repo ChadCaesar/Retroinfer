@@ -241,7 +241,8 @@ class QwenModel(LLM):
                 cluster_select = retroinfer_config["cluster_select"],
                 cluster_reuse = retroinfer_config["cluster_reuse"],
                 eviction_policy = retroinfer_config["eviction_policy"],
-                top_p = retroinfer_config.get("top_p", 0.4)
+                top_p = retroinfer_config.get("top_p", 0.4),
+                reuse_threshold = retroinfer_config.get("reuse_threshold", 0.95)
             )
         else:
             raise ValueError(f"Unsupported attention type: {self.attention_type}")

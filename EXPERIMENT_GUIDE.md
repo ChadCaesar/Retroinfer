@@ -58,7 +58,7 @@ python simple_test.py \
 | `run_e2_selection.sh` | top-k vs top-p | ~2.5h |
 | `run_e3_reuse.sh` | Reuse ON vs OFF | ~2.5h |
 | `run_e4_topp.sh` | top_p ∈ {0.3,0.4,0.5,0.6} | ~1h |
-| `run_e5_interact.sh` | 2×2×2 交互效应 | ~2h |
+| `run_e5_reuse_threshold.sh` | threshold ∈ {0.85,0.9,0.95,0.99} | ~2h |
 
 ### 环境变量
 
@@ -98,7 +98,7 @@ bash benchmark/run_e1_eviction.sh
 bash benchmark/run_e2_selection.sh
 bash benchmark/run_e3_reuse.sh
 bash benchmark/run_e4_topp.sh
-bash benchmark/run_e5_interact.sh
+bash benchmark/run_e5_reuse_threshold.sh
 ```
 
 ---
@@ -120,7 +120,7 @@ python benchmark/aggregate_results.py
 - `benchmark/e2_selection.csv` — E2 模式 × 准确率 × 吞吐量 × 延迟
 - `benchmark/e3_reuse.csv` — E3 复用 × 分长度吞吐量 × 准确率 × 复用命中率
 - `benchmark/e4_topp.csv` — E4 top_p × 准确率 × 吞吐量
-- `benchmark/e5_interact.csv` — E5 组合 × 准确率 × 命中率 × 吞吐量
+- `benchmark/e5_reuse_threshold.csv` — E5 阈值 × musique/gov_report/单针/多针 acc × 复用命中率 × 吞吐量
 
 ### 手动评测
 
@@ -191,7 +191,7 @@ python benchmark/aggregate_results.py
 | `benchmark/e2_selection.csv` | E2 模式 × 分散/集中 LB × 单/多针 RULER × 吞吐量 × 延迟 |
 | `benchmark/e3_reuse.csv` | E3 复用 × 分长度吞吐量 × 延迟 × LB/RULER acc × 复用命中率 |
 | `benchmark/e4_topp.csv` | E4 top_p × gov_report/passage_retrieval/单针/多针 acc × 吞吐量 |
-| `benchmark/e5_interact.csv` | E5 组合 × musique/gov_report/单针/多针 acc × 命中率 × 吞吐量 |
+| `benchmark/e5_reuse_threshold.csv` | E5 阈值 × musique/gov_report/单针/多针 acc × 复用命中率 × 吞吐量 |
 
 ---
 

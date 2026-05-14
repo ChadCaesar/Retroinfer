@@ -16,8 +16,8 @@
 
 cd "$(dirname "$0")"
 
-if [ $# -ne 12 ]; then
-    echo "Usage: $0 <model_name> $1 <benchmark_name> $2 <attn_type> $3 <context length> $4 <task> $5 <dtype> $6 <budget_ratio> $7 <estimate_ratio> $8 <cluster_select> $9 <cluster_reuse> ${10} <eviction_policy> ${11} <top_p>"
+if [ $# -ne 13 ]; then
+    echo "Usage: $0 <model_name> $1 <benchmark_name> $2 <attn_type> $3 <context length> $4 <task> $5 <dtype> $6 <budget_ratio> $7 <estimate_ratio> $8 <cluster_select> $9 <cluster_reuse> ${10} <eviction_policy> ${11} <top_p> ${12} <reuse_threshold>"
     exit 1
 fi
 
@@ -34,6 +34,7 @@ CLUSTER_SELECT=${9}
 CLUSTER_REUSE=${10}
 EVICTION_POLICY=${11}
 TOP_P=${12}
+REUSE_THRESHOLD=${13}
 GPU_TEMP_LIMIT=${GPU_TEMP_LIMIT:-80}
 
 # Model and Tokenizer
@@ -55,7 +56,7 @@ fi
 
 # Start client (prepare data / call model API / obtain final metrics)
 
-RESULTS_DIR="${ROOT_DIR}/${MODEL_NAME}/${BENCHMARK}/${MAX_SEQ_LENGTH}/${ATTN_TYPE}_${CLUSTER_SELECT}_${CLUSTER_REUSE}_${EVICTION_POLICY}_${TOP_P}"
+RESULTS_DIR="${ROOT_DIR}/${MODEL_NAME}/${BENCHMARK}/${MAX_SEQ_LENGTH}/${ATTN_TYPE}_${CLUSTER_SELECT}_${CLUSTER_REUSE}_${EVICTION_POLICY}_${TOP_P}_${REUSE_THRESHOLD}"
 DATA_DIR="${RESULTS_DIR}/data"
 PRED_DIR="${RESULTS_DIR}/pred"
 mkdir -p ${DATA_DIR}
@@ -93,6 +94,7 @@ python -u pred/call_api.py \
     --cluster_reuse ${CLUSTER_REUSE} \
     --eviction_policy ${EVICTION_POLICY} \
     --top_p ${TOP_P} \
+    --reuse_threshold ${REUSE_THRESHOLD} \
     --gpu_temp_limit ${GPU_TEMP_LIMIT} \
 
 python -u eval/evaluate.py \

@@ -19,13 +19,13 @@ for tp in "${TOP_P_VALUES[@]}"; do
     log_msg "========== E4: top_p=${tp} =========="
 
     # LongBench
-    run_longbench "gov_report"          "${FIXED_SELECT}" "${FIXED_REUSE}" "${FIXED_POLICY}" "RetroInfer" "${tp}"
-    run_longbench "passage_retrieval_en" "${FIXED_SELECT}" "${FIXED_REUSE}" "${FIXED_POLICY}" "RetroInfer" "${tp}"
-    eval_longbench "${FIXED_SELECT}" "${FIXED_REUSE}" "${FIXED_POLICY}" "RetroInfer" "${tp}"
+    run_longbench "gov_report"          "${FIXED_SELECT}" "${FIXED_REUSE}" "${FIXED_POLICY}" "RetroInfer" "${tp}" "${REUSE_THRESHOLD}"
+    run_longbench "passage_retrieval_en" "${FIXED_SELECT}" "${FIXED_REUSE}" "${FIXED_POLICY}" "RetroInfer" "${tp}" "${REUSE_THRESHOLD}"
+    eval_longbench "${FIXED_SELECT}" "${FIXED_REUSE}" "${FIXED_POLICY}" "RetroInfer" "${tp}" "${REUSE_THRESHOLD}"
 
     # RULER
-    run_ruler "niah_single_1"   "${FIXED_SELECT}" "${FIXED_REUSE}" "${FIXED_POLICY}" "RetroInfer" "${tp}"
-    run_ruler "niah_multikey_1" "${FIXED_SELECT}" "${FIXED_REUSE}" "${FIXED_POLICY}" "RetroInfer" "${tp}"
+    run_ruler "niah_single_1"   "${FIXED_SELECT}" "${FIXED_REUSE}" "${FIXED_POLICY}" "RetroInfer" "${tp}" "${REUSE_THRESHOLD}"
+    run_ruler "niah_multikey_1" "${FIXED_SELECT}" "${FIXED_REUSE}" "${FIXED_POLICY}" "RetroInfer" "${tp}" "${REUSE_THRESHOLD}"
 
     # Throughput
     run_throughput "${FIXED_SELECT}" "${FIXED_REUSE}" "${FIXED_POLICY}" "${tp}" "top_p_${tp}"
