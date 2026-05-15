@@ -178,7 +178,7 @@ if __name__ == '__main__':
     if not os.path.exists("results/pred_e"):
         os.makedirs("results/pred_e")
 
-    config_suffix = f"{args.cluster_select}_{args.cluster_reuse}_{args.eviction_policy}_{args.top_p}"
+    config_suffix = f"{args.cluster_select}_{args.cluster_reuse}_{args.eviction_policy}_{args.top_p}_{args.reuse_threshold}"
     attn_dir = f"{attn_type}_{config_suffix}"
 
     for dataset in datasets:
