@@ -4,6 +4,7 @@
 
 | 实验 | 消融对象 | 固定配置 | 变化量 | 主要指标 | 一键脚本 |
 |------|---------|---------|--------|---------|---------|
+| E0 | 基线 vs 全优化 | — | Baseline / Optimized | 准确率（10任务） | `run_e0_baseline.sh` |
 | E1 | 缓存替换策略 | top-p + 复用 | LRU / SCLRU / ARC | 命中率 + 准确率 | `run_e1_eviction.sh` |
 | E2 | 聚类选择方式 | SCLRU + 复用 | top-k / top-p | 吞吐量 + 准确率 | `run_e2_selection.sh` |
 | E3 | 聚类复用 | SCLRU + top-p | True / False | 吞吐量 + 复用命中率 + 准确率 | `run_e3_reuse.sh` |
@@ -33,6 +34,48 @@ RULER 在 **131072 tokens** 上下文中测试检索能力，与 RetroInfer 的 
 | `niah_multiquery` | 1 key, 4 query | 多次查询同上下文 |
 
 非 NIAH 任务：`vt`（变量追踪）、`cwe`（常见词）、`fwe`（高频词）、`qa_1`/`qa_2`（问答）。
+
+---
+
+## E0: 基线 vs 全优化对比
+
+### 目的
+
+在同一组代表性任务上对比两种极端配置：
+
+| 配置 | cluster_select | cluster_reuse | eviction_policy | 说明 |
+|------|---------------|--------------|----------------|------|
+| Baseline | top-k | False | LRU | 无任何优化 |
+| Optimized | top-p (0.4) | True (0.95) | SCLRU | 启用全部优化 |
+
+目的是建立全局参照系：Baseline 是消融实验的下界，Optimized 是上界。每个消融实验（E1-E5）可通过与这两个端点对比，定位该优化在整体提升中的贡献比例。
+
+### 任务选择（10 个代表性 LongBench 任务）
+
+| 任务 | 类型 | 选择理由 |
+|------|------|---------|
+| `musique` | 多跳推理 | 需跨段落关联，高缓存压力 |
+| `gov_report` | 长摘要 | 注意力分散，检索需覆盖全文 |
+| `passage_count` | 跨段落计数 | 逐段比较，访问模式重复 |
+| `passage_retrieval_en` | 段落检索 | 注意力集中，单点定位 |
+| `trec` | 分类 | 依赖整体语义，非信息定位 |
+| `triviaqa` | 短问答 | 单点知识提取 |
+| `narrativeqa` | 叙事问答 | 故事级长上下文理解 |
+| `qasper` | 论文问答 | 科学论文级检索 |
+| `lcc` | 代码补全 | 代码领域迁移 |
+| `qmsum` | 会议摘要 | 长对话理解 |
+
+### 运行
+
+```bash
+bash benchmark/run_e0_baseline.sh
+```
+
+### 作用
+
+- Baseline 作为所有消融实验的**下界参考**
+- Optimized 作为所有消融实验的**上界参考**
+- 对比 E1-E5 的结果与这两个端点，可清晰看出各优化对总体差距的贡献比例
 
 ---
 
@@ -181,6 +224,13 @@ bash benchmark/run_e5_reuse_threshold.sh
 ---
 
 ## 结果汇总模板
+
+### E0: 基线 vs 全优化
+
+| 配置 | musique | gov_report | passage_count | passage_retrieval | trec | triviaqa | narrativeqa | qasper | lcc | qmsum |
+|------|---------|-----------|--------------|-------------------|------|---------|------------|--------|-----|-------|
+| Baseline | | | | | | | | | | |
+| Optimized | | | | | | | | | | |
 
 ### E1: 缓存替换策略
 

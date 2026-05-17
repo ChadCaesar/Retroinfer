@@ -54,6 +54,7 @@ python simple_test.py \
 
 | 脚本 | 实验 | 耗时 |
 |------|------|------|
+| `run_e0_baseline.sh` | RetroInfer 基线 (top-k + False + LRU) | ~30min |
 | `run_e1_eviction.sh` | LRU vs SCLRU vs ARC | ~3h |
 | `run_e2_selection.sh` | top-k vs top-p | ~2.5h |
 | `run_e3_reuse.sh` | Reuse ON vs OFF | ~2.5h |
@@ -91,9 +92,12 @@ MODEL_SHORT=qwen2.5-7b MODEL_PATH=Qwen/Qwen2.5-7B-Instruct bash benchmark/run_e2
 
 ## 3. 运行顺序
 
-E1 → E2 → E3 → E4 → E5。E4 可并行。
+E0（基线，仅需跑一次）→ E1 → E2 → E3 → E4 → E5。
 
 ```bash
+# 先跑基线（所有消融实验的对比基准）
+bash benchmark/run_e0_baseline.sh
+# 然后跑消融实验
 bash benchmark/run_e1_eviction.sh
 bash benchmark/run_e2_selection.sh
 bash benchmark/run_e3_reuse.sh
